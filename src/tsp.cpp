@@ -110,6 +110,71 @@ IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
    return (length);
 }
 
+ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
+{
+   IloEnv env = getEnv();
+   /**
+    * Miminum Cut Phase (Graph G, Weight function w, vertex a)
+    */
+
+   // Number of vertices
+   IloInt n = x.getSize();
+   // Retrieve solution information
+   IloNumArray2 G(env, n);
+   for (IloInt i = 0; i < n; i++)
+   {
+      G[i] = IloNumArray(env, n);
+      getValues(G[i], x[i]);
+   }
+
+   for (IloInt i = 0; i < n; i++)
+      for (IloInt j = 0; j < i; j++)
+         G[j][i] = G[i][j];
+
+   vector<int> A;
+   vector<int> V;
+   vector<double> weight(n,0.0);
+
+   // Select a random vertex
+   int a = rand()%n;
+   A.push_back(a);
+   for(int i=0; i < n; i++){
+      if(i!=a)
+         V.push_back(i);
+   }
+
+   double cut_of_the_phase = -1;
+
+   for(auto j:V){
+      weight[j] += G[a][j];
+      cut_of_the_phase = max(cut_of_the_phase,weight[j]);
+   }
+
+   while(A.size() < n){
+      // Find the most tightly connected vertex - mtcv
+      IloInt mtcv = V[rand()%V.size()];
+      
+      //TODO implement with a priority queue
+      for(auto j:V)
+         if(weight[j] - tol > cut_of_the_phase){
+            cut_of_the_phase = weight[j];
+            mtcv = j;
+            cout<<cut_of_the_phase<<endl;
+         }
+      A.push_back(mtcv);
+      V.erase(remove(V.begin(), V.end(), mtcv), V.end());
+      
+      for(auto j:V){
+         if(j!=mtcv)
+            weight[j] += G[mtcv][j];
+      }
+   }
+   
+   cout<<"Entrei"<<endl;
+   return;
+
+}
+
 ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
 {
    // NodeInfo *data = dynamic_cast<NodeInfo *>(getNodeData());
@@ -499,6 +564,7 @@ int main(int argc, char **argv)
 
       cplex.use(SubtourEliminationCallback(env, x, tol));
       cplex.use(MaxBack(env, x, tol));
+      cplex.use(MinCut(env, x, tol));
       cplex.setParam(IloCplex::PreInd, IloFalse);
 
       bool solved = cplex.solve();
