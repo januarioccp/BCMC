@@ -37,32 +37,6 @@
 #include <cstdlib>
 using namespace std;
 
-
-void displayPathtoPrincess(int n, vector <string> grid){
-    //your logic here
-    unsigned x,y;
-    bool found = false;
-    int posx,posy;
-    x = y = 0;
-    for(x = 0; x < grid.size() && !found; x++)
-        for(y = 0; y < grid.size() && !found; y++)
-            if(grid[x][y] == 'p'){
-                found = true;
-                posx = x;
-                posy = y;
-                break;
-            }
-    if( posx > 1)
-        cout<<"RIGHT\n";
-    else
-        cout<<"LEFT\n";
-    if( posy > 1)
-        cout<<"DOWN\n";
-    else
-        cout<<"UP\n";
-                
-}
-
 #ifdef FULLTEST
 #include <assert.h>
 IloBool cutCalled = IloFalse;
