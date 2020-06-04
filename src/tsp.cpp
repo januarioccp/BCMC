@@ -59,7 +59,7 @@ IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
 
    while (seen[current] == 0)
    {
-      cout<<current<<" ";
+      cout << current << " ";
       length++;
       seen[current] = length;
       for (j = 0; j < current; j++)
@@ -80,19 +80,65 @@ IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
       last = current;
       current = j;
    }
-   cout<<endl;
+   cout << endl;
    return (length);
+}
+
+double MinimumCutPhase(IloNumArray2 &G, int n,IloNum tol)
+{
+   vector<int> A;
+   vector<int> V;
+   vector<double> weight(n, 0.0);
+
+   // Select a random vertex
+   int a = rand() % n;
+   A.push_back(a);
+   for (int i = 0; i < n; i++)
+   {
+      if (i != a)
+         V.push_back(i);
+   }
+
+   double cut_of_the_phase = numeric_limits<double>::min();
+
+   for (auto j : V)
+   {
+      weight[j] += G[a][j];
+      cut_of_the_phase = max(cut_of_the_phase, weight[j]);
+   }
+
+   while (A.size() < n)
+   {
+      // Find the most tightly connected vertex - mtcv
+      int mtcv = V[rand() % V.size()];
+
+      //TODO implement with a priority queue
+      for (auto j : V)
+         if (weight[j] - tol > cut_of_the_phase)
+         {
+            cut_of_the_phase = weight[j];
+            mtcv = j;
+         }
+      A.push_back(mtcv);
+      V.erase(remove(V.begin(), V.end(), mtcv), V.end());
+
+      for (auto j : V)
+      {
+         if (j != mtcv)
+            weight[j] += G[mtcv][j];
+      }
+   }
+   return cut_of_the_phase;
+
 }
 
 ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
 {
    IloEnv env = getEnv();
-   /**
-    * Miminum Cut Phase (Graph G, Weight function w, vertex a)
-    */
 
    // Number of vertices
    IloInt n = x.getSize();
+
    // Retrieve solution information
    IloNumArray2 G(env, n);
    for (IloInt i = 0; i < n; i++)
@@ -101,72 +147,32 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
       getValues(G[i], x[i]);
    }
 
+   // Creating an adjacency matrix
    for (IloInt i = 0; i < n; i++)
       for (IloInt j = 0; j < i; j++)
          G[j][i] = G[i][j];
 
-   vector<int> A;
-   vector<int> V;
-   vector<double> weight(n,0.0);
+   vector<int> V(n);
+   for(unsigned i=0; i < V.size(); i++)
+      V[i] = i;
 
-   // Select a random vertex
-   int a = rand()%n;
-   A.push_back(a);
-   for(int i=0; i < n; i++){
-      if(i!=a)
-         V.push_back(i);
-   }
+   random_shuffle(V.begin(),V.end());
 
-   double cut_of_the_phase = -1;
-
-   for(auto j:V){
-      weight[j] += G[a][j];
-      cut_of_the_phase = max(cut_of_the_phase,weight[j]);
-   }
-
-   while(A.size() < n){
-      // Find the most tightly connected vertex - mtcv
-      IloInt mtcv = V[rand()%V.size()];
-      
-      //TODO implement with a priority queue
-      for(auto j:V)
-         if(weight[j] - tol > cut_of_the_phase){
-            cut_of_the_phase = weight[j];
-            mtcv = j;
-            cout<<cut_of_the_phase<<endl;
-         }
-      A.push_back(mtcv);
-      V.erase(remove(V.begin(), V.end(), mtcv), V.end());
-      
-      for(auto j:V){
-         if(j!=mtcv)
-            weight[j] += G[mtcv][j];
+   double current_min_cut = numeric_limits<double>::max();
+   while(V.size()){
+      double cut_of_the_phase = MinimumCutPhase(G,V[0],tol);
+      if(cut_of_the_phase - tol < current_min_cut){
+         current_min_cut = cut_of_the_phase;
       }
+      V.erase(V.begin());
    }
-   
-   cout<<"Entrei"<<endl;
-   return;
-
 }
 
 ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
 {
-   // NodeInfo *data = dynamic_cast<NodeInfo *>(getNodeData());
-   //   if (!data)
-   //  {
-   //      if (NodeInfo::rootData == NULL)
-   //      {
-   //          NodeInfo::initRootData();
-   //      }
-   //      data = NodeInfo::rootData;
-   //  }
-
-   // data->addIteration();
-   // cout<<data->getIterations()<<endl;
-
    if (getCurrentNodeDepth() >= 7 && getNiterations() >= 100)
       return;
-   
+
    IloEnv env = getEnv();
    IloInt n = x.getSize();
 
@@ -187,7 +193,7 @@ ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
    vector<double> b(n);
    fill(seen.begin(), seen.end(), false);
 
-   int v = rand()%n;
+   int v = rand() % n;
    S.push_back(v);
    seen[v] = true;
    b[v] = -numeric_limits<double>::infinity();
@@ -203,13 +209,6 @@ ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
          Cutmin += b[i];
       }
    }
-
-   // if(Cutmin > 0){
-   //    int a = 0;
-   //    for(auto i:b)
-   //       cout<<"b["<<a++<<"] = "<<i<<endl;
-   //    exit(0);
-   // }
 
    Smin = S;
    Cutval = Cutmin;
@@ -242,7 +241,7 @@ ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
       }
    }
 
-   if (Cutmin < 2-tol)
+   if (Cutmin < 2 - tol)
    {
       fill(seen.begin(), seen.end(), false);
       vector<int> v = Smin;
@@ -303,7 +302,7 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
          sol[j][i] = sol[i][j];
 
    // Declares a boolean vector of size n with false
-   vector<bool> seen(n,false);
+   vector<bool> seen(n, false);
 
    // An array to store the subtours
    IloNumArray tour(env, n);
@@ -391,7 +390,7 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
    vector<double> b(n);
    fill(seen.begin(), seen.end(), false);
 
-   int v = rand()%n;
+   int v = rand() % n;
    S.push_back(v);
    seen[v] = true;
    b[v] = -numeric_limits<double>::infinity();
@@ -439,7 +438,7 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
       }
    }
 
-   if (Cutmin < 2-tol)
+   if (Cutmin < 2 - tol)
    {
       fill(seen.begin(), seen.end(), false);
       vector<int> v = Smin;
@@ -519,10 +518,11 @@ int main(int argc, char **argv)
       for (IloInt i = 0; i < n; i++)
       {
          IloExpr expr(env);
-         for (IloInt j = 0; j < n; j++){
-            if(i>j)
+         for (IloInt j = 0; j < n; j++)
+         {
+            if (i > j)
                expr += x[i][j];
-            if(j>i)
+            if (j > i)
                expr += x[j][i];
          }
          IloConstraint c(expr == 2);
@@ -547,27 +547,33 @@ int main(int argc, char **argv)
          env.out() << "Optimal tour length "
                    << cplex.getObjValue() << endl;
 
-         IloNumArray2 sol(env, n);
-         for (IloInt i = 0; i < n; i++) {
-             sol[i] = IloNumArray(env,n);
-             cplex.getValues(sol[i], x[i]);
-         }
-         IloBoolArray seen(env);
-         IloInt length = checkTour(sol, seen, tol);
+      IloNumArray2 sol(env, n);
+      for (IloInt i = 0; i < n; i++)
+      {
+         sol[i] = IloNumArray(env, n);
+         cplex.getValues(sol[i], x[i]);
+      }
+      IloBoolArray seen(env);
+      IloInt length = checkTour(sol, seen, tol);
 
-         if ( length < n ) {
-            IloExpr clique(env);
-            for (int i = 0; i < n; i++) {
-               if ( seen[i] ) {
-                  for (int j = i+1; j < n; j++) {
-                     if ( seen[j] ) clique += x[j][i];
-                  }
+      if (length < n)
+      {
+         IloExpr clique(env);
+         for (int i = 0; i < n; i++)
+         {
+            if (seen[i])
+            {
+               for (int j = i + 1; j < n; j++)
+               {
+                  if (seen[j])
+                     clique += x[j][i];
                }
             }
-            cerr << cplex.getValue(clique) << " <= " << length-1 << endl;
          }
+         cerr << cplex.getValue(clique) << " <= " << length - 1 << endl;
+      }
 
-         // assert (length == n);
+      // assert (length == n);
 
 #ifdef FULLTEST
       assert(cplex.getImpl()->isConsistent());
