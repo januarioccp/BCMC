@@ -140,38 +140,67 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
    IloInt n = x.getSize();
 
    // Retrieve solution information
-   IloNumArray2 G(env, n);
+   IloNumArray2 w(env, n);
    for (IloInt i = 0; i < n; i++)
    {
-      G[i] = IloNumArray(env, n);
-      getValues(G[i], x[i]);
+      w[i] = IloNumArray(env, n);
+      getValues(w[i], x[i]);
    }
-
    // Creating an adjacency matrix
    for (IloInt i = 0; i < n; i++)
       for (IloInt j = 0; j < i; j++)
-         G[j][i] = G[i][j];
+         w[j][i] = w[i][j];
 
+   vector<int> S;
+   vector<int> Smin;
+   vector<bool> seen(n);
+
+   // You need to find the value of the minimum cut
+   double cut_of_the_phase;
+   double current_min_cut = numeric_limits<double>::max();
+   
+   // Create a vertex set
    vector<int> V(n);
    for(unsigned i=0; i < V.size(); i++)
       V[i] = i;
 
+   // Randomize the set of vertices
    random_shuffle(V.begin(),V.end());
 
-   double current_min_cut = numeric_limits<double>::max();
-   while(V.size()){
-      double cut_of_the_phase = MinimumCutPhase(G,V[0],tol);
+   // Compute the minimumCut
+   while(V.size() > 1){
+      cut_of_the_phase = MinimumCutPhase(w,V,S,tol);
       if(cut_of_the_phase - tol < current_min_cut){
          current_min_cut = cut_of_the_phase;
+         Smin = S;
       }
-      V.erase(V.begin());
+   }
+
+   // Add the constraint
+   if (current_min_cut < 2 - tol)
+   {
+      fill(seen.begin(), seen.end(), false);
+      vector<int> v = Smin;
+      for (int i = 0; i < v.size(); i++)
+         seen[v[i]] = true;
+      vector<int> y;
+      for (int i = 0; i < n; i++)
+         if (!seen[i])
+            y.push_back(i);
+      if (v.size() > 0 && y.size() > 0)
+      {
+         IloExpr expr1(env);
+         for (int i = 0; i < v.size(); i++)
+            for (int j = 0; j < y.size(); j++)
+               expr1 += x[v[i]][y[j]] + x[y[j]][v[i]];
+         add(expr1 >= 2).end();
+         expr1.end();
+      }
    }
 }
 
 ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
 {
-   if (getCurrentNodeDepth() >= 7 && getNiterations() >= 100)
-      return;
 
    IloEnv env = getEnv();
    IloInt n = x.getSize();
@@ -261,27 +290,12 @@ ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
          add(expr1 >= 2).end();
          expr1.end();
       }
+   }else
+   {
+      if (getCurrentNodeDepth() >= 7 && getNiterations() >= 100)
+         return;
    }
 
-   // return Smin;
-
-   // IloInt const nbLocations = used.getSize();
-   // IloInt const nbClients = supply.getSize();
-
-   // // For each j and c check whether in the current solution (obtained by
-   // // calls to getValue()) we have supply[c][j]>used[j]. If so, then we have
-   // // found a violated constraint and add it as a cut.
-   // for (IloInt j = 0; j < nbLocations; ++j) {
-   //    for (IloInt c = 0; c < nbClients; ++c) {
-   //       IloNum const s = getValue(supply[c][j]);
-   //       IloNum const o = getValue(used[j]);
-   //       if ( s > o + EPS) {
-   //          cout << "Adding: " << supply[c][j].getName() << " <= "
-   //               << used[j].getName() << " [" << s << " > " << o << "]" << endl;
-   //          add(supply[c][j] <= used[j]).end();
-   //       }
-   //    }
-   // }
 }
 
 ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
