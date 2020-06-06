@@ -46,6 +46,79 @@ ILOSTLBEGIN
 
 typedef IloArray<IloBoolVarArray> Edges;
 
+class DisjSet { 
+    int *rank, *parent, n; 
+  
+public: 
+    // Constructor to create and 
+    // initialize sets of n items 
+    DisjSet(int n) 
+    { 
+        rank = new int[n]; 
+        parent = new int[n]; 
+        this->n = n; 
+        makeSet(); 
+    } 
+  
+    // Creates n single item sets 
+    void makeSet() 
+    { 
+        for (int i = 0; i < n; i++) { 
+            parent[i] = i; 
+        } 
+    } 
+  
+    // Finds set of given item x 
+    int find(int x) 
+    { 
+        // Finds the representative of the set 
+        // that x is an element of 
+        if (parent[x] != x) { 
+  
+            // if x is not the parent of itself 
+            // Then x is not the representative of 
+            // his set, 
+            parent[x] = find(parent[x]); 
+  
+            // so we recursively call Find on its parent 
+            // and move i's node directly under the 
+            // representative of this set 
+        } 
+  
+        return parent[x]; 
+    } 
+  
+    // Do union of two sets represented 
+    // by x and y. 
+    void Union(int x, int y) 
+    { 
+        // Find current sets of x and y 
+        int xset = find(x); 
+        int yset = find(y); 
+  
+        // If they are already in same set 
+        if (xset == yset) 
+            return; 
+  
+        // Put smaller ranked item under 
+        // bigger ranked item if ranks are 
+        // different 
+        if (rank[xset] < rank[yset]) { 
+            parent[xset] = yset; 
+        } 
+        else if (rank[xset] > rank[yset]) { 
+            parent[yset] = xset; 
+        } 
+  
+        // If ranks are same, then increment 
+        // rank. 
+        else { 
+            parent[yset] = xset; 
+            rank[xset] = rank[xset] + 1; 
+        } 
+    } 
+};
+
 IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
 {
    IloInt j, n = sol.getSize();
@@ -103,40 +176,53 @@ double MinimumCutPhase( IloNumArray2 &w,
    // want to find the maximum cut value
    double cut_of_the_phase = numeric_limits<double>::min();
    double cutWeight = 0.0;
-   
+
    //most tightly connected vertex
    int mtcv;
    while (A.size() < n)
    {
+      cut_of_the_phase = numeric_limits<double>::min();
       // Find the most tightly connected vertex - mtcv
       mtco = V.front();
       for( auto i: V){
-         cut = 0.0;
+         cutWeight = 0.0;
          for(auto j: A)
             cutWeight+=w[i][j];
          if(cutWeight - tol > cut_of_the_phase){
+            // Store the cut of the phase value
             cut_of_the_phase = cutWeight;
-            mtcv = 
+            // Store the most tightly connected vertex - mtcv
+            mtcv = i;
          }
       }
-      
-
-      //TODO implement with a priority queue
-      for (auto j : V)
-         if (weight[j] - tol > cut_of_the_phase)
-         {
-            cut_of_the_phase = weight[j];
-            mtcv = j;
-         }
+      // Add to A the most tightly connected vertex - mtcv
       A.push_back(mtcv);
-      V.erase(remove(V.begin(), V.end(), mtcv), V.end());
 
-      for (auto j : V)
-      {
-         if (j != mtcv)
-            weight[j] += G[mtcv][j];
+      // Remove mtcv from V
+      V.erase(remove(V.begin(), V.end(), mtcv), V.end());
+   }
+   
+   DisjSet dSet(n);
+   
+   // Before last
+   int s = *(A.end()-1);
+   // Last added
+   int t = A.back();
+
+   // Merge the two last vertex added last
+   dSet.Union(s,t);
+
+   // Shrink G and build S
+   for(auto i: A){
+      w[i][s]+=w[i][t];
+      // TODO check it t!= i
+      if(dSet.find(t) == dSet.find(i)){
+         S.push_back(i);
       }
    }
+   
+   V.erase(remove(V.begin(), V.end(), t), V.end());
+
    return cut_of_the_phase;
 
 }
