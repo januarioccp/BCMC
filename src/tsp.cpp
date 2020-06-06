@@ -160,33 +160,48 @@ IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
 
 double MinimumCutPhase( IloNumArray2 &w, 
                         int &n, 
-                        vector<int> &V,
+                        vector<int> &G, // Make a Copy!!
                         vector<int> &S,
                         DisjSet &dSet;
                         IloNum tol)
 {
+
    // A container to the vertices in this phase
    vector<int> A;
+
+   // Store a copy of G
+   vector<int> V;
+   
+   // Copying G by assign function 
+   V.assign(G.begin(), G.end()); 
 
    // Choose a vector from v to insert in A
    A.push_back(V.back());
 
-   // Remove it from V
+   // Remove the vertex inserted in A from V
    V.pop_back();
 
    // Initialize with the minimum value, because you
    // want to find the maximum cut value
-   double cut_of_the_phase = numeric_limits<double>::min();
+   double cut_of_the_phase;
+
+   // Use this auxiliary variable to help you to find 
+   // the largest value in each phase
    double cutWeight = 0.0;
 
    //most tightly connected vertex
    int mtcv;
+
+   // Store the current size of V
+   int n = V.size();
+
+   // You need to do until A is as large as V (initially)
    while (A.size() < n)
    {
       cut_of_the_phase = numeric_limits<double>::min();
       // Find the most tightly connected vertex - mtcv
       mtco = V.front();
-      for( auto i: V){
+      for(auto i: V){
          cutWeight = 0.0;
          for(auto j: A)
             cutWeight+=w[i][j];
@@ -213,6 +228,7 @@ double MinimumCutPhase( IloNumArray2 &w,
    dSet.Union(s,t);
 
    // Shrink G and build S
+   G.erase(remove(G.begin(), G.end(), t), G.end());
    for(auto i: A){
       w[i][s]+=w[i][t];
       // TODO check it t!= i
@@ -220,8 +236,6 @@ double MinimumCutPhase( IloNumArray2 &w,
          S.push_back(i);
       }
    }
-   
-   V.erase(remove(V.begin(), V.end(), t), V.end());
 
    return cut_of_the_phase;
 
