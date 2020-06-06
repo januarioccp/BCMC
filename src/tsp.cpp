@@ -55,8 +55,8 @@ public:
     // initialize sets of n items 
     DisjSet(int n) 
     { 
-        rank = new int[n]; 
-        parent = new int[n]; 
+        rank.resize(n); 
+        parent.resize(n); 
         this->n = n; 
         makeSet(); 
     } 
@@ -162,6 +162,7 @@ double MinimumCutPhase( IloNumArray2 &w,
                         int &n, 
                         vector<int> &V,
                         vector<int> &S,
+                        DisjSet &dSet;
                         IloNum tol)
 {
    // A container to the vertices in this phase
@@ -261,9 +262,12 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
    // Randomize the set of vertices
    random_shuffle(V.begin(),V.end());
 
+   // Use a disjoint set data structure to shrink G
+   DisjSet dSet(n);
+
    // Compute the minimumCut
    while(V.size() > 1){
-      cut_of_the_phase = MinimumCutPhase(w,V,S,tol);
+      cut_of_the_phase = MinimumCutPhase(w,V,S,dSet,tol);
       if(cut_of_the_phase  < current_min_cut - tol){
          current_min_cut = cut_of_the_phase;
          Smin = S;
