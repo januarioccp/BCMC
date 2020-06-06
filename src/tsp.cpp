@@ -159,10 +159,9 @@ IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
 }
 
 double MinimumCutPhase( IloNumArray2 &w, 
-                        int &n, 
                         vector<int> &G, // Make a Copy!!
                         vector<int> &S,
-                        DisjSet &dSet;
+                        DisjSet &dSet,
                         IloNum tol)
 {
 
@@ -178,7 +177,7 @@ double MinimumCutPhase( IloNumArray2 &w,
    // Choose a vector from v to insert in A
    A.push_back(V.back());
 
-   // Remove the vertex inserted in A from V
+   // Remove the vertex inserted in A from G
    V.pop_back();
 
    // Initialize with the minimum value, because you
@@ -192,15 +191,15 @@ double MinimumCutPhase( IloNumArray2 &w,
    //most tightly connected vertex
    int mtcv;
 
-   // Store the current size of V
-   int n = V.size();
+   // Store the initial size of G
+   int n = V.size() + A.size();
 
-   // You need to do until A is as large as V (initially)
+   // You need to do until A is as large as the initial size of G 
    while (A.size() < n)
    {
       cut_of_the_phase = numeric_limits<double>::min();
       // Find the most tightly connected vertex - mtcv
-      mtco = V.front();
+      mtcv = V.front();
       for(auto i: V){
          cutWeight = 0.0;
          for(auto j: A)
