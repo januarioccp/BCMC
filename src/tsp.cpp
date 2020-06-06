@@ -279,8 +279,11 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
    // Use a disjoint set data structure to shrink G
    DisjSet dSet(n);
 
-   // Compute the minimumCut
+   // Compute the minimumCut while there is 
+   // at least 2 vertices
    while(V.size() > 1){
+      // Clear the partition set every time!
+      S.clear();
       cut_of_the_phase = MinimumCutPhase(w,V,S,dSet,tol);
       if(cut_of_the_phase  < current_min_cut - tol){
          current_min_cut = cut_of_the_phase;
