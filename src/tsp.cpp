@@ -293,7 +293,6 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
          for(int i=0; i < n; i++)
             if(dSet.find(last) == dSet.find(i))
                Smin.push_back(i);
-
       }
    }
    exit(0);
