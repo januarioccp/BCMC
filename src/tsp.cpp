@@ -226,8 +226,10 @@ pair<double,int> MinimumCutPhase( IloNumArray2 &w,
 
    // Shrink G
    G.erase(remove(G.begin(), G.end(), t), G.end());
-   for(auto i: A)
+   for(auto i: A){
       w[i][s]+=w[i][t];
+      w[s][i] = w[i][s];
+   }
 
    return make_pair(cut_of_the_phase,t);
 
@@ -254,6 +256,14 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
    for (IloInt i = 0; i < n; i++)
       for (IloInt j = 0; j < i; j++)
          w[j][i] = w[i][j];
+
+   // TODO it only works it the values of w are non negative
+   for (IloInt i = 0; i < n; i++){
+      for (IloInt j = 0; j < n; j++){
+         cout<<setw(4)<<w[i][j]<<endl;
+      }
+      cout<<endl;
+   }
 
    vector<int> Smin;
    vector<bool> seen(n);
