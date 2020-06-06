@@ -84,33 +84,42 @@ IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
    return (length);
 }
 
-double MinimumCutPhase(IloNumArray2 &G, int n,IloNum tol)
+double MinimumCutPhase( IloNumArray2 &w, 
+                        int &n, 
+                        vector<int> &V,
+                        vector<int> &S,
+                        IloNum tol)
 {
+   // A container to the vertices in this phase
    vector<int> A;
-   vector<int> V;
-   vector<double> weight(n, 0.0);
 
-   // Select a random vertex
-   int a = rand() % n;
-   A.push_back(a);
-   for (int i = 0; i < n; i++)
-   {
-      if (i != a)
-         V.push_back(i);
-   }
+   // Choose a vector from v to insert in A
+   A.push_back(V.back());
 
+   // Remove it from V
+   V.pop_back();
+
+   // Initialize with the minimum value, because you
+   // want to find the maximum cut value
    double cut_of_the_phase = numeric_limits<double>::min();
-
-   for (auto j : V)
-   {
-      weight[j] += G[a][j];
-      cut_of_the_phase = max(cut_of_the_phase, weight[j]);
-   }
-
+   double cutWeight = 0.0;
+   
+   //most tightly connected vertex
+   int mtcv;
    while (A.size() < n)
    {
       // Find the most tightly connected vertex - mtcv
-      int mtcv = V[rand() % V.size()];
+      mtco = V.front();
+      for( auto i: V){
+         cut = 0.0;
+         for(auto j: A)
+            cutWeight+=w[i][j];
+         if(cutWeight - tol > cut_of_the_phase){
+            cut_of_the_phase = cutWeight;
+            mtcv = 
+         }
+      }
+      
 
       //TODO implement with a priority queue
       for (auto j : V)
@@ -170,14 +179,14 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
    // Compute the minimumCut
    while(V.size() > 1){
       cut_of_the_phase = MinimumCutPhase(w,V,S,tol);
-      if(cut_of_the_phase - tol < current_min_cut){
+      if(cut_of_the_phase  < current_min_cut - tol){
          current_min_cut = cut_of_the_phase;
          Smin = S;
       }
    }
 
    // Add the constraint
-   if (current_min_cut < 2 - tol)
+   if (current_min_cut < 2.0 - tol)
    {
       fill(seen.begin(), seen.end(), false);
       vector<int> v = Smin;
@@ -270,7 +279,7 @@ ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
       }
    }
 
-   if (Cutmin < 2 - tol)
+   if (Cutmin < 2.0 - tol)
    {
       fill(seen.begin(), seen.end(), false);
       vector<int> v = Smin;
