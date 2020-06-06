@@ -158,7 +158,7 @@ IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
    return (length);
 }
 
-double MinimumCutPhase( IloNumArray2 &w, 
+pair<double,int> MinimumCutPhase( IloNumArray2 &w, 
                         vector<int> &G, // Make a Copy!!
                         DisjSet &dSet,
                         IloNum tol)
@@ -229,7 +229,7 @@ double MinimumCutPhase( IloNumArray2 &w,
    for(auto i: A)
       w[i][s]+=w[i][t];
 
-   return cut_of_the_phase;
+   return make_pair(cut_of_the_phase,t);
 
 }
 
@@ -255,7 +255,6 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
       for (IloInt j = 0; j < i; j++)
          w[j][i] = w[i][j];
 
-   vector<int> S;
    vector<int> Smin;
    vector<bool> seen(n);
 
@@ -276,20 +275,25 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
    // Compute the minimumCut while there is 
    // at least 2 vertices
    while(V.size() > 1){
-      // Clear the partition set every time!
-      S.clear();
       // for(auto i:S)
       //    cout<<i<<" ";
       // cout<<endl;
-      double cut_of_the_phase = MinimumCutPhase(w,V,dSet,tol);
+      pair<double,int> result = MinimumCutPhase(w,V,dSet,tol);
+      double cut_of_the_phase = result.first;
+      int last = result.second;
       // for(auto i:S)
       //    cout<<i<<" ";
       // cout<<endl;
       if(cut_of_the_phase  < current_min_cut - tol){
-          cout<<"cut_of_the_phase: "<<cut_of_the_phase<<endl;
+         cout<<"cut_of_the_phase: "<<cut_of_the_phase<<endl;
          current_min_cut = cut_of_the_phase;
+         
+         // Clear the partition set every time!
+         Smin.clear();
+         for(int i=0; i < n; i++)
+            if(dSet.find(last) == dSet.find(i))
+               Smin.push_back(i);
 
-         Smin = S;
       }
    }
    exit(0);
