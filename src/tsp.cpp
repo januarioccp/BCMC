@@ -47,8 +47,9 @@ ILOSTLBEGIN
 typedef IloArray<IloBoolVarArray> Edges;
 
 class DisjSet { 
-    int *rank, *parent, n; 
-  
+    vector<int> rank;
+    vector<int> parent;
+    int n; 
 public: 
     // Constructor to create and 
     // initialize sets of n items 
@@ -201,8 +202,6 @@ double MinimumCutPhase( IloNumArray2 &w,
       // Remove mtcv from V
       V.erase(remove(V.begin(), V.end(), mtcv), V.end());
    }
-   
-   DisjSet dSet(n);
    
    // Before last
    int s = *(A.end()-1);
