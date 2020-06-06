@@ -160,7 +160,6 @@ IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
 
 double MinimumCutPhase( IloNumArray2 &w, 
                         vector<int> &G, // Make a Copy!!
-                        vector<int> &S,
                         DisjSet &dSet,
                         IloNum tol)
 {
@@ -212,29 +211,23 @@ double MinimumCutPhase( IloNumArray2 &w,
          }
       }
       // Add to A the most tightly connected vertex - mtcv
-      A.push_back(mtcv);
-
+      A.push_back(mtcv);      
       // Remove mtcv from V
       V.erase(remove(V.begin(), V.end(), mtcv), V.end());
    }
    
    // Before last
-   int s = *(A.end()-1);
+   int s = *(A.end()-2);
    // Last added
    int t = A.back();
 
    // Merge the two last vertex added last
    dSet.Union(s,t);
 
-   // Shrink G and build S
+   // Shrink G
    G.erase(remove(G.begin(), G.end(), t), G.end());
-   for(auto i: A){
+   for(auto i: A)
       w[i][s]+=w[i][t];
-      // TODO check it t!= i
-      if(dSet.find(t) == dSet.find(i)){
-         S.push_back(i);
-      }
-   }
 
    return cut_of_the_phase;
 
@@ -242,6 +235,9 @@ double MinimumCutPhase( IloNumArray2 &w,
 
 ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
 {
+   if (getCurrentNodeDepth() >= 7)
+      return;
+   
    IloEnv env = getEnv();
 
    // Number of vertices
@@ -264,7 +260,6 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
    vector<bool> seen(n);
 
    // You need to find the value of the minimum cut
-   double cut_of_the_phase;
    double current_min_cut = numeric_limits<double>::max();
    
    // Create a vertex set
@@ -283,16 +278,28 @@ ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
    while(V.size() > 1){
       // Clear the partition set every time!
       S.clear();
-      cut_of_the_phase = MinimumCutPhase(w,V,S,dSet,tol);
+      // for(auto i:S)
+      //    cout<<i<<" ";
+      // cout<<endl;
+      double cut_of_the_phase = MinimumCutPhase(w,V,dSet,tol);
+      // for(auto i:S)
+      //    cout<<i<<" ";
+      // cout<<endl;
       if(cut_of_the_phase  < current_min_cut - tol){
+          cout<<"cut_of_the_phase: "<<cut_of_the_phase<<endl;
          current_min_cut = cut_of_the_phase;
+
          Smin = S;
       }
    }
+   exit(0);
 
    // Add the constraint
    if (current_min_cut < 2.0 - tol)
    {
+      for(auto i:Smin)
+         cout<<i<<" ";
+      cout<<endl;
       fill(seen.begin(), seen.end(), false);
       vector<int> v = Smin;
       for (int i = 0; i < v.size(); i++)
@@ -404,10 +411,6 @@ ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
          add(expr1 >= 2).end();
          expr1.end();
       }
-   }else
-   {
-      if (getCurrentNodeDepth() >= 7 && getNiterations() >= 100)
-         return;
    }
 
 }
