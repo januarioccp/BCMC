@@ -1,34 +1,6 @@
-// -------------------------------------------------------------- -*- C++ -*-
-// File: examples/test/ilocplex/tsp.cpp
-// Version 12.5
-// --------------------------------------------------------------------------
-// Licensed Materials - Property of IBM
-// 5725-A06 5725-A29 5724-Y48 5724-Y49 5724-Y54 5724-Y55 5655-Y21
-// Copyright IBM Corporation 2000, 2012. All Rights Reserved.
-//
-// US Government Users Restricted Rights - Use, duplication or
-// disclosure restricted by GSA ADP Schedule Contract with
-// IBM Corp.
-// --------------------------------------------------------------------------
-//
-//
-// tsp.cpp -- Solves a simple traveling salesman problem.
-//
-// This example solves a small traveling salesman problem
-// as a MIP model containing two sets of constraints:
-//   --- degree:  each city is visited once
-//                (exactly two edges are incident to each
-//                 node in the graph representation)
-//   --- subtour: a tour contains no subtours
-//                (given a proper subset of the nodes of size
-//                 L, the set of edges between pairs of nodes
-//                 in this set is of size no more than L-1)
-// All of the degree constraints are included in the initial
-// MIP, while subtour constraints are treated as lazy constraints,
-// and are added dynamically through the cut callback.
-
 #define MAX_ITER 100
 
+#include "MinCutter.h"
 #include <ilcplex/ilocplex.h>
 #include "data.h"
 #include "NodeInfo.h"
@@ -46,79 +18,7 @@ ILOSTLBEGIN
 
 typedef IloArray<IloBoolVarArray> Edges;
 
-class DisjSet { 
-    vector<int> rank;
-    vector<int> parent;
-    int n; 
-public: 
-    // Constructor to create and 
-    // initialize sets of n items 
-    DisjSet(int n) 
-    { 
-        rank.resize(n); 
-        parent.resize(n); 
-        this->n = n; 
-        makeSet(); 
-    } 
-  
-    // Creates n single item sets 
-    void makeSet() 
-    { 
-        for (int i = 0; i < n; i++) { 
-            parent[i] = i; 
-        } 
-    } 
-  
-    // Finds set of given item x 
-    int find(int x) 
-    { 
-        // Finds the representative of the set 
-        // that x is an element of 
-        if (parent[x] != x) { 
-  
-            // if x is not the parent of itself 
-            // Then x is not the representative of 
-            // his set, 
-            parent[x] = find(parent[x]); 
-  
-            // so we recursively call Find on its parent 
-            // and move i's node directly under the 
-            // representative of this set 
-        } 
-  
-        return parent[x]; 
-    } 
-  
-    // Do union of two sets represented 
-    // by x and y. 
-    void Union(int x, int y) 
-    { 
-        // Find current sets of x and y 
-        int xset = find(x); 
-        int yset = find(y); 
-  
-        // If they are already in same set 
-        if (xset == yset) 
-            return; 
-  
-        // Put smaller ranked item under 
-        // bigger ranked item if ranks are 
-        // different 
-        if (rank[xset] < rank[yset]) { 
-            parent[xset] = yset; 
-        } 
-        else if (rank[xset] > rank[yset]) { 
-            parent[yset] = xset; 
-        } 
-  
-        // If ranks are same, then increment 
-        // rank. 
-        else { 
-            parent[yset] = xset; 
-            rank[xset] = rank[xset] + 1; 
-        } 
-    } 
-};
+MinCutter *mc;
 
 IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
 {
@@ -158,194 +58,66 @@ IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
    return (length);
 }
 
-pair<double,int> MinimumCutPhase( IloNumArray2 &w, 
-                        vector<int> &G, // Make a Copy!!
-                        DisjSet &dSet,
-                        IloNum tol)
-{
-
-   // A container to the vertices in this phase
-   vector<int> A;
-
-   // Store a copy of G
-   vector<int> V;
-   
-   // Copying G by assign function 
-   V.assign(G.begin(), G.end()); 
-
-   // Choose a vector from v to insert in A
-   A.push_back(V.back());
-
-   // Remove the vertex inserted in A from G
-   V.pop_back();
-
-   // Initialize with the minimum value, because you
-   // want to find the maximum cut value
-   double cut_of_the_phase;
-
-   // Use this auxiliary variable to help you to find 
-   // the largest value in each phase
-   double cutWeight = 0.0;
-
-   //most tightly connected vertex
-   int mtcv;
-
-   // Store the initial size of G
-   int n = V.size() + A.size();
-
-   // You need to do until A is as large as the initial size of G 
-   while (A.size() < n)
-   {
-      cut_of_the_phase = numeric_limits<double>::min();
-      // Find the most tightly connected vertex - mtcv
-      mtcv = V.front();
-      for(auto i: V){
-         cutWeight = 0.0;
-         for(auto j: A)
-            cutWeight+=w[i][j];
-         if(cutWeight - tol > cut_of_the_phase){
-            // Store the cut of the phase value
-            cut_of_the_phase = cutWeight;
-            // Store the most tightly connected vertex - mtcv
-            mtcv = i;
-         }
-      }
-      // Add to A the most tightly connected vertex - mtcv
-      A.push_back(mtcv);      
-      // Remove mtcv from V
-      V.erase(remove(V.begin(), V.end(), mtcv), V.end());
-   }
-   
-   // Before last
-   int s = *(A.end()-2);
-   // Last added
-   int t = A.back();
-
-   // Merge the two last vertex added last
-   dSet.Union(s,t);
-
-   // Shrink G
-   G.erase(remove(G.begin(), G.end(), t), G.end());
-   for(auto i: A){
-      w[i][s]+=w[i][t];
-      w[s][i] = w[i][s];
-   }
-
-   return make_pair(cut_of_the_phase,t);
-
-}
-
 ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
 {
-   if (getCurrentNodeDepth() >= 7)
+   if (getCurrentNodeDepth() > 7)
+   {
       return;
-   
+   }
+
    IloEnv env = getEnv();
 
    // Number of vertices
    IloInt n = x.getSize();
 
    // Retrieve solution information
-   IloNumArray2 w(env, n);
+   vector<vector<double>> w(n);
    for (IloInt i = 0; i < n; i++)
    {
-      w[i] = IloNumArray(env, n);
-      getValues(w[i], x[i]);
+      w[i].resize(n);
+      for (IloInt j = 0; j < n; j++)
+         w[i][j] = abs(double(getValue(x[i][j])));
    }
+
    // Creating an adjacency matrix
    for (IloInt i = 0; i < n; i++)
       for (IloInt j = 0; j < i; j++)
          w[j][i] = w[i][j];
 
-   // TODO it only works it the values of w are non negative
-   for (IloInt i = 0; i < n; i++){
-      for (IloInt j = 0; j < n; j++){
-         cout<<setw(4)<<w[i][j]<<endl;
-      }
-      cout<<endl;
-   }
-
-   vector<int> Smin;
-   vector<bool> seen(n);
-
-   // You need to find the value of the minimum cut
-   double current_min_cut = numeric_limits<double>::max();
-   
-   // Create a vertex set
-   vector<int> V(n);
-   for(unsigned i=0; i < V.size(); i++)
-      V[i] = i;
-
-   // Randomize the set of vertices
-   random_shuffle(V.begin(),V.end());
-
-   // Use a disjoint set data structure to shrink G
-   DisjSet dSet(n);
-
-   // Compute the minimumCut while there is 
-   // at least 2 vertices
-   while(V.size() > 1){
-      // for(auto i:S)
-      //    cout<<i<<" ";
-      // cout<<endl;
-      pair<double,int> result = MinimumCutPhase(w,V,dSet,tol);
-      double cut_of_the_phase = result.first;
-      int last = result.second;
-      // for(auto i:S)
-      //    cout<<i<<" ";
-      // cout<<endl;
-      if(cut_of_the_phase  < current_min_cut - tol){
-         cout<<"cut_of_the_phase: "<<cut_of_the_phase<<endl;
-         current_min_cut = cut_of_the_phase;
-         
-         // Clear the partition set every time!
-         Smin.clear();
-         for(int i=0; i < n; i++)
-            if(dSet.find(last) == dSet.find(i))
-               Smin.push_back(i);
-      }
-   }
-   exit(0);
+   mc->MINIMUMCUTUPDATE(w);
 
    // Add the constraint
-   if (current_min_cut < 2.0 - tol)
+   if (mc->getMinCut() < 2.0 - tol)
    {
-      for(auto i:Smin)
-         cout<<i<<" ";
-      cout<<endl;
-      fill(seen.begin(), seen.end(), false);
-      vector<int> v = Smin;
-      for (int i = 0; i < v.size(); i++)
-         seen[v[i]] = true;
-      vector<int> y;
-      for (int i = 0; i < n; i++)
-         if (!seen[i])
-            y.push_back(i);
-      if (v.size() > 0 && y.size() > 0)
-      {
-         IloExpr expr1(env);
-         for (int i = 0; i < v.size(); i++)
-            for (int j = 0; j < y.size(); j++)
-               expr1 += x[v[i]][y[j]] + x[y[j]][v[i]];
-         add(expr1 >= 2).end();
-         expr1.end();
-      }
+      pair<vector<int>, vector<int>> partition = mc->getPartition();
+
+      IloExpr expr1(env);
+      for (auto i : partition.first)
+         for (auto j : partition.second)
+            expr1 += x[i][j] + x[j][i];
+      add(expr1 >= 2).end();
+      expr1.end();
    }
 }
 
 ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
 {
+   if (getCurrentNodeDepth() > 7)
+      return;
 
    IloEnv env = getEnv();
    IloInt n = x.getSize();
 
-   IloNumArray2 sol(env, n);
+   // Retrieve solution information
+   vector<vector<double>> sol(n);
    for (IloInt i = 0; i < n; i++)
    {
-      sol[i] = IloNumArray(env, n);
-      getValues(sol[i], x[i]);
+      sol[i].resize(n);
+      for (IloInt j = 0; j < n; j++)
+         sol[i][j] = abs(double(getValue(x[i][j])));
    }
 
+   // Creating an adjacency matrix
    for (IloInt i = 0; i < n; i++)
       for (IloInt j = 0; j < i; j++)
          sol[j][i] = sol[i][j];
@@ -425,7 +197,21 @@ ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
          expr1.end();
       }
    }
+   else{
+      mc->MINIMUMCUTUPDATE(sol);
+      // Add the constraint
+      if (mc->getMinCut() < 2.0 - tol)
+      {
+         pair<vector<int>, vector<int>> partition = mc->getPartition();
 
+         IloExpr expr1(env);
+         for (auto i : partition.first)
+            for (auto j : partition.second)
+               expr1 += x[i][j] + x[j][i];
+         add(expr1 >= 2).end();
+         expr1.end();
+      }
+   }
 }
 
 ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
@@ -616,6 +402,7 @@ int main(int argc, char **argv)
    input.readData();
 
    IloInt n = input.getDimension();
+   mc = new MinCutter(n);
 
    //Environment
    IloEnv env;
@@ -681,9 +468,12 @@ int main(int argc, char **argv)
       IloNum tol = cplex.getParam(IloCplex::EpInt);
 
       cplex.use(SubtourEliminationCallback(env, x, tol));
-      cplex.use(MaxBack(env, x, tol));
-      cplex.use(MinCut(env, x, tol));
+      // cplex.use(MaxBack(env, x, tol));
+      //      cplex.use(MinCut(env, x, tol));
       cplex.setParam(IloCplex::PreInd, IloFalse);
+      // cplex.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
+      // cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
+      // cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
 
       bool solved = cplex.solve();
 
@@ -729,7 +519,7 @@ int main(int argc, char **argv)
 #endif
 
       // sec.end();
-
+      delete mc;
       for (IloInt i = 0; i < n; i++)
          dist[i].end();
       dist.end();

@@ -9,9 +9,12 @@ DisjSet::DisjSet(int n)
 }
 
 void DisjSet::makeSet(){
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++){
         parent[i] = i;
+        rank[i] = 0;
+    }
 }
+
 
 int DisjSet::find(int x) 
     { 
