@@ -1,31 +1,25 @@
-// TSP classes
+// TSP classes and global objects
 #include "input.h"
 #include "solution.h"
 #include "construction.h"
 #include "neighborhood.h"
 #include "perturbation.h"
 #include "localsearch.h"
-
-#define MAX_ITER 100
-#include "MinCutter.h"
-#include <ilcplex/ilocplex.h>
 #include "data.h"
+#include "MinCutter.h"
+MinCutter *mc;
+
+// CPLEX classes and global objects
+#include <ilcplex/ilocplex.h>
 #include "NodeInfo.h"
+#define MAX_ITER 100
+typedef IloArray<IloBoolVarArray> Edges;
+
+// STL classes
 #include <vector>
 #include <cmath>
 #include <cstdlib>
 using namespace std;
-
-#ifdef FULLTEST
-#include <assert.h>
-IloBool cutCalled = IloFalse;
-#endif
-
-ILOSTLBEGIN
-
-typedef IloArray<IloBoolVarArray> Edges;
-
-MinCutter *mc;
 
 IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol);
 
@@ -367,28 +361,35 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
    sol.end();
 }
 
-double **matrizAdj; // matriz de adjacencia
-int dimension;		// quantidade total de vertices
+int toEdge(int x, int y, int n){
+	if(x >= y)
+		return 0;
+	if( x == 0)
+		return y-x;
+    else
+		return n*x-(x*(x+1)/2)+y-x;
+}
 
 int main(int argc, char **argv)
 {
-   Input in(argc, argv);
-   Data input(argc, argv[1]);
-   input.readData();
-   readData(argc, argv, &dimension, &matrizAdj);
+
+   // Run RVND to identify an UB
+   Input in(argc, argv);   
    Solution sol(&in);
 	LocalSearch ls(&in);
    sol = ls.GILSRVND();
-
    int UB = sol.costValueTSP + 1;
-   cout<<UB<<endl;
 
+   // Read input to get dimmention and initialize MinCutter
+   Data input(argc, argv[1]);
+   input.readData();
    IloInt n = input.getDimension();
    mc = new MinCutter(n);
 
    //Environment
    IloEnv env;
    env.setName("Branch and Cut");
+
    // create model
    IloModel tsp(env);
    tsp.setName("Traveling Tournament Problem Model");
@@ -400,21 +401,20 @@ int main(int argc, char **argv)
       // You are allocating memory. Remmember to free it before leaving
       for (IloInt i = 0; i < n; i++)
          dist[i] = IloNumArray(env, n);
-
       for (IloInt i = 0; i < n; i++)
          for (IloInt j = 0; j < n; j++)
             dist[i][j] = input.getDistance(i, j);
 
-      // Create variables x[i][j] for all 0 <= j < i < n representing the
+      // Create variables x[i][j] for all 0 <= i < j < n representing the
       // edge between cities i and j.  A setting of 1 indicates that the edge
       // is part of the tour.
       Edges x(env, n);
+      int k = 1;
       for (IloInt i = 0; i < n; i++)
       {
          x[i] = IloBoolVarArray(env, n);
-         for (IloInt j = 0; j < n; j++)
-         {
-            string name = "x_" + to_string(i) + "_" + to_string(j);
+         for (IloInt j = i+1; j < n; j++){
+            string name = "x" + to_string(k++);
             x[i][j].setName(name.c_str());
          }
       }
@@ -422,24 +422,20 @@ int main(int argc, char **argv)
       // Objective is to minimize the sum of edge weights for traveled edges
       IloExpr obj(env);
       for (IloInt i = 0; i < n; i++)
-      {
-         obj += IloScalProd(x[i], dist[i]);
-      }
+         for (IloInt j = i+1; j < n; j++)
+               obj += x[i][j]*dist[i][j];
       tsp.add(IloMinimize(env, obj));
 
       // degree constraints --- exactly two traveled edges incident to each node
-      for (IloInt i = 0; i < n; i++)
-      {
+      for (IloInt i = 0; i < n; i++){
          IloExpr expr(env);
-         for (IloInt j = 0; j < n; j++)
-         {
-            if (i > j)
+         for (IloInt j = 0; j < n; j++){
+            if (i < j)
                expr += x[i][j];
-            if (j > i)
+            if (j < i)
                expr += x[j][i];
          }
          IloConstraint c(expr == 2);
-         c.setName("Degree");
          tsp.add(c);
       }
 
@@ -447,10 +443,38 @@ int main(int argc, char **argv)
       // Export the LP model to a txt file to check correctness
       cplex.exportModel("model.lp");
 
+      // Declaring initial solution
+      IloNumArray x_start(env,(n*(n-1)/2));
+      for(int i = 0; x_start.getSize(); i++)
+         x_start[i]=0;
+
+      // // Build initial solution
+      // for (int i = 0; i < sol.location.size(); i++)
+      // {
+      //    if (sol.location[i] < sol.location[i + 1])
+      //       x_start[sol.location[i]][sol.location[i + 1]] = 1;
+      //    else
+      //       x_start[sol.location[i + 1]][sol.location[i]] = 1;
+      // }
+      // if (sol.location.back() < sol.location.front())
+      //    x_start[sol.location.back()][sol.location.front()] = 1;
+      // else
+      //    x_start[sol.location.front()][sol.location.back()] = 1;
+
+      cout<<"Possible errror"<<endl;
+      IloNumVarArray y(env,(n*(n-1)/2));
+	   for(int i = 0; i < n;i++)
+         for(int j = i+1; j < n;j++)
+		      y[i] = x[i][j];
+      
+      cout<<"Possible errror"<<endl;
+	   
+      cplex.addMIPStart(y, x_start);
+
       IloNum tol = cplex.getParam(IloCplex::EpInt);
 
-      cplex.use(SubtourEliminationCallback(env, x, tol));
-      cplex.use(MaxBack(env, x, tol));
+      // cplex.use(SubtourEliminationCallback(env, x, tol));
+      // cplex.use(MaxBack(env, x, tol));
       //      cplex.use(MinCut(env, x, tol));
       cplex.setParam(IloCplex::PreInd, IloFalse);
       cplex.setParam(IloCplex::TiLim, 2 * 60 * 60);
@@ -465,6 +489,8 @@ int main(int argc, char **argv)
       if (solved)
          env.out() << "Optimal tour length "
                    << cplex.getObjValue() << endl;
+
+      return 0;
 
       IloNumArray2 sol(env, n);
       for (IloInt i = 0; i < n; i++)
