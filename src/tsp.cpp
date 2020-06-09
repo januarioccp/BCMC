@@ -1,5 +1,12 @@
-#define MAX_ITER 100
+// TSP classes
+#include "input.h"
+#include "solution.h"
+#include "construction.h"
+#include "neighborhood.h"
+#include "perturbation.h"
+#include "localsearch.h"
 
+#define MAX_ITER 100
 #include "MinCutter.h"
 #include <ilcplex/ilocplex.h>
 #include "data.h"
@@ -20,43 +27,7 @@ typedef IloArray<IloBoolVarArray> Edges;
 
 MinCutter *mc;
 
-IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
-{
-   IloInt j, n = sol.getSize();
-   IloInt last = -1;
-   IloInt length = 0;
-   IloInt current = 0;
-   seen.clear();
-   seen.add(n, 0.0);
-
-   // Search for a subtour if sol[] is integer feasible
-
-   while (seen[current] == 0)
-   {
-      cout << current << " ";
-      length++;
-      seen[current] = length;
-      for (j = 0; j < current; j++)
-      {
-         if (j != last && sol[current][j] >= 1.0 - tol)
-            break;
-      }
-      if (j == current)
-      {
-         for (j = current + 1; j < n; j++)
-         {
-            if (j != last && sol[j][current] >= 1.0 - tol)
-               break;
-         }
-      }
-      if (j == n)
-         return (n + 1);
-      last = current;
-      current = j;
-   }
-   cout << endl;
-   return (length);
-}
+IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol);
 
 ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
 {
@@ -398,8 +369,15 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
 
 int main(int argc, char **argv)
 {
+   Input in(argc, argv);
    Data input(argc, argv[1]);
    input.readData();
+   Solution sol(&in);
+	LocalSearch ls(&in);
+   sol = ls.GILSRVND();
+
+   int UB = sol.costValueTSP + 1;
+   cout<<UB<<endl;
 
    IloInt n = input.getDimension();
    mc = new MinCutter(n);
@@ -468,9 +446,12 @@ int main(int argc, char **argv)
       IloNum tol = cplex.getParam(IloCplex::EpInt);
 
       cplex.use(SubtourEliminationCallback(env, x, tol));
-      // cplex.use(MaxBack(env, x, tol));
+      cplex.use(MaxBack(env, x, tol));
       //      cplex.use(MinCut(env, x, tol));
       cplex.setParam(IloCplex::PreInd, IloFalse);
+      cplex.setParam(IloCplex::TiLim, 2 * 60 * 60);
+	   cplex.setParam(IloCplex::Threads, 1);
+	   cplex.setParam(IloCplex::CutUp, UB + 1);
       // cplex.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
       // cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
       // cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
@@ -541,4 +522,42 @@ int main(int argc, char **argv)
 
    env.end();
    return 0;
+}
+
+IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
+{
+   IloInt j, n = sol.getSize();
+   IloInt last = -1;
+   IloInt length = 0;
+   IloInt current = 0;
+   seen.clear();
+   seen.add(n, 0.0);
+
+   // Search for a subtour if sol[] is integer feasible
+
+   while (seen[current] == 0)
+   {
+      cout << current << " ";
+      length++;
+      seen[current] = length;
+      for (j = 0; j < current; j++)
+      {
+         if (j != last && sol[current][j] >= 1.0 - tol)
+            break;
+      }
+      if (j == current)
+      {
+         for (j = current + 1; j < n; j++)
+         {
+            if (j != last && sol[j][current] >= 1.0 - tol)
+               break;
+         }
+      }
+      if (j == n)
+         return (n + 1);
+      last = current;
+      current = j;
+   }
+   cout << endl;
+   return (length);
 }

@@ -13,7 +13,7 @@ distMatrix(NULL){
 		exit( 1 );        
 	}
 
-	if ( qtParam > 2 )    {
+	if ( qtParam > 3 )    {
 		cout << "Too many parameters\n";
 		cout << " ./exeLaRP [Instance]"  << endl;
 		exit( 1 );
