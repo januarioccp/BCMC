@@ -1,21 +1,44 @@
+#ifndef GRAPH_H
+#define GRAPH_H
+
+#include <vector>
 #include <map>
 #include <iostream>
-using namespace std;
+#include <algorithm>
+#include <limits>
+#define EPSILON 0.00001
 
-class Graph{
-    public:
-    // Overloading [] operator to access elements in array style 
-    int& operator[](int);
+typedef struct edge
+{
+  int i, j;
+  double w;
+} Edge;
+
+class Graph
+{
+private:
+  Edge *edges;
+  int numEdges, numNodes, **edgeIndex;
+
+public:
+  Graph(int, double **);
+  Graph() {}
+  virtual ~Graph();
+
+  int getNumNodes();
+  int getNumEdges();
+
+  void setNumNodes(int);
+  void setNumEdges(int);
+
+  double w(int, int);
+  void setW(int i, int j, double w);
+
+  int getEdge(int, int);
+
+  void printEdges();
+
+  Edge *getEdges();
 };
 
-// Implementation of [] operator.  This function must return a 
-// reference as array element can be put on left side 
-int& Graph::operator[](int index) 
-{ 
-    if (0 >= index) { 
-        cout << "Array index out of bound, exiting"; 
-        exit(0); 
-    }
-    int *p = new int[5];
-    return p[index]; 
-} 
+#endif

@@ -367,11 +367,15 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
    sol.end();
 }
 
+double **matrizAdj; // matriz de adjacencia
+int dimension;		// quantidade total de vertices
+
 int main(int argc, char **argv)
 {
    Input in(argc, argv);
    Data input(argc, argv[1]);
    input.readData();
+   readData(argc, argv, &dimension, &matrizAdj);
    Solution sol(&in);
 	LocalSearch ls(&in);
    sol = ls.GILSRVND();
