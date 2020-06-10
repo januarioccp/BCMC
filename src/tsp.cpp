@@ -312,8 +312,7 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
       double maxb = -numeric_limits<double>::infinity();
       for (int i = 0; i < n; i++)
          if (!seen[i])
-            if (maxb < b[i])
-            {
+            if (maxb < b[i]){
                maxb = b[i];
                v = i;
             }
