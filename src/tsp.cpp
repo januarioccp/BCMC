@@ -12,6 +12,7 @@ MinCutter *mc;
 // CPLEX classes and global objects
 #include <ilcplex/ilocplex.h>
 #include "NodeInfo.h"
+#include "MyLazyCallback.h"
 #define MAX_ITER 100
 typedef IloArray<IloBoolVarArray> Edges;
 
@@ -362,17 +363,18 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
 }
 
 int toEdge(int x, int y, int n){
-	if(x >= y)
+	if(x == y)
 		return 0;
+	if(x>y)
+		swap(x,y);
 	if( x == 0)
 		return y-x;
     else
-		return n*x-(x*(x+1)/2)+y-x;
+		return (n-1)*x-(x*(x+1)/2)+y;
 }
 
 int main(int argc, char **argv)
 {
-
    // Run RVND to identify an UB
    Input in(argc, argv);   
    Solution sol(&in);
@@ -440,38 +442,29 @@ int main(int argc, char **argv)
       }
 
       IloCplex cplex(tsp);
-      // Export the LP model to a txt file to check correctness
-      cplex.exportModel("model.lp");
 
       // Declaring initial solution
       IloNumArray x_start(env,(n*(n-1)/2));
-      for(int i = 0; x_start.getSize(); i++)
+      for(int i = 0; i < x_start.getSize(); i++)
          x_start[i]=0;
 
-      // // Build initial solution
-      // for (int i = 0; i < sol.location.size(); i++)
-      // {
-      //    if (sol.location[i] < sol.location[i + 1])
-      //       x_start[sol.location[i]][sol.location[i + 1]] = 1;
-      //    else
-      //       x_start[sol.location[i + 1]][sol.location[i]] = 1;
-      // }
-      // if (sol.location.back() < sol.location.front())
-      //    x_start[sol.location.back()][sol.location.front()] = 1;
-      // else
-      //    x_start[sol.location.front()][sol.location.back()] = 1;
+      // Build initial solution
+      for (int i = 0; i < sol.location.size() - 1; i++)
+		   x_start[toEdge(sol.location[i],sol.location[i+1],n)] = 1;
+      x_start[toEdge(sol.location.back(),sol.location.front(),n)] = 1;
 
-      cout<<"Possible errror"<<endl;
-      IloNumVarArray y(env,(n*(n-1)/2));
+      IloNumVarArray y(env);
 	   for(int i = 0; i < n;i++)
          for(int j = i+1; j < n;j++)
-		      y[i] = x[i][j];
-      
-      cout<<"Possible errror"<<endl;
-	   
+		      y.add(x[i][j]);
+
       cplex.addMIPStart(y, x_start);
 
       IloNum tol = cplex.getParam(IloCplex::EpInt);
+
+      // Subtour Elimination Callback
+      MyLazyCallback *lazyCbk = new (env) MyLazyCallback(env,x);
+      cplex.use(lazyCbk);
 
       // cplex.use(SubtourEliminationCallback(env, x, tol));
       // cplex.use(MaxBack(env, x, tol));
@@ -484,6 +477,8 @@ int main(int argc, char **argv)
       // cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
       // cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
 
+      // Export the LP model to a txt file to check correctness
+      cplex.exportModel("model.lp");
       bool solved = cplex.solve();
 
       if (solved)
