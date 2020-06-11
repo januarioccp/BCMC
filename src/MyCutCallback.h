@@ -23,14 +23,14 @@ using namespace std;
 class MyCutCallback : public IloCplex::UserCutCallbackI
 {
 public:
-  MyCutCallback(IloEnv env, const IloBoolVarArray &x_ref, Graph *G);
+  MyCutCallback(IloEnv env, const IloArray<IloBoolVarArray> &par_x);
   IloCplex::CallbackI *duplicateCallback() const;
   void main();
 
   static std::mutex lazyMutex;
 
 private:
-  IloBoolVarArray x;
+  IloArray<IloBoolVarArray> x;
 };
 
 #endif
