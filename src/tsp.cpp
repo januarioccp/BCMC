@@ -24,6 +24,17 @@ using namespace std;
 
 IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol);
 
+int toEdge(int x, int y, int n){
+	if(x == y)
+		return 0;
+	if(x>y)
+		swap(x,y);
+	if( x == 0)
+		return y-x;
+    else
+		return (n-1)*x-(x*(x+1)/2)+y;
+}
+
 ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
 {
    if (getCurrentNodeDepth() > 7)
@@ -190,23 +201,29 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
    for (IloInt i = 0; i < n; i++)
    {
       sol[i] = IloNumArray(env, n);
-      getValues(sol[i], x[i]);
+      for (IloInt j = 0; j < n; j++){
+         if(i < j)
+            sol[i][j] = abs(getValue(x[i][j]));
+         else
+            sol[i][j] = 0;
+      }
    }
 
    for (IloInt i = 0; i < n; i++)
-      for (IloInt j = 0; j < i; j++)
+      for (IloInt j = i+1; j < n; j++)
          sol[j][i] = sol[i][j];
+
 
    // Declares a boolean vector of size n with false
    vector<bool> seen(n, false);
 
    // An array to store the subtours
-   IloNumArray tour(env, n);
+   vector<int> tour(n);
 
    IloInt i, node, len, start;
 
    // Vector os positions
-   vector<pair<int, int>> p;
+   vector<pair<int, int>> position;
 
    for (i = 0; i < n; i++)
       seen[i] = false;
@@ -253,7 +270,7 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
             // In this case, increase the size of the lenght
             len++;
             pair<int, int> pos(start, len);
-            p.push_back(pos);
+            position.push_back(pos);
             //Start a new subtour
             start += len;
             break;
@@ -261,115 +278,130 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
       }
    }
 
+   // for(auto city: tour)
+   //    cout<<setw(3)<<city;
+   // cout<<endl;
+
+   // for(auto p: position)
+   //    cout<<setw(3)<<p.first<<setw(3)<<p.second<<endl;
+   // cout<<endl;
+
    // Create and add subtour constraint ---
    // No more than 'length-1' edges between members of the subtour
-   if (p.size() > 1)
+   if (position.size() > 1)
    {
-      for (i = 0; i < p.size(); i++)
+      for (auto p: position)
       {
          IloExpr expr1(env);
-         for (int a = p[i].first; a < p[i].first + p[i].second; a++)
-            for (int b = a + 1; b < p[i].first + p[i].second; b++)
-               expr1 += x[tour[a]][tour[b]] + x[tour[b]][tour[a]];
-         // cout << "Adding lazy constraint " << expr1 << " <= " << p[i].second - 1 << endl;
-         add(expr1 <= p[i].second - 1).end();
+         int i,s;
+         for (i = p.first,s=0; s < p.second-1; i++,s++){
+            // cout<<"("<<
+            //    tour[i]<<","<<
+            //    tour[i+1]<<") ="<<
+            //    toEdge(tour[i],tour[i+1],n)<<
+            //       endl;
+               if(tour[i] < tour[i+1])
+                    expr1 += x[tour[i]][tour[i+1]];
+                else
+                    expr1 += x[tour[i+1]][tour[i]];
+         }
+         // cout<<"("<<
+         //       tour[i]<<","<<
+         //       tour[p.first]<<") ="<<
+         //       toEdge(tour[i],tour[p.first],n)<<
+         //          endl;
+         if(tour[i] < tour[p.first])
+            expr1 += x[tour[i]][tour[p.first]];
+         else
+            expr1 += x[tour[p.first]][tour[i]];
+         // cout << "Adding lazy constraint " << expr1 << " <= " << p.second - 1 << endl;
+         add(expr1 <= p.second - 1).end();
          expr1.end();
       }
    }
 
-   for (IloInt i = 0; i < n; i++)
-      for (IloInt j = 0; j < i; j++)
-         sol[j][i] = sol[i][j];
+   // for (IloInt i = 0; i < n; i++)
+   //    for (IloInt j = 0; j < i; j++)
+   //       sol[j][i] = sol[i][j];
 
-   vector<int> S;
-   vector<int> Smin;
-   vector<double> b(n);
-   fill(seen.begin(), seen.end(), false);
+   // vector<int> S;
+   // vector<int> Smin;
+   // vector<double> b(n);
+   // fill(seen.begin(), seen.end(), false);
 
-   int v = rand() % n;
-   S.push_back(v);
-   seen[v] = true;
-   b[v] = -numeric_limits<double>::infinity();
+   // int v = rand() % n;
+   // S.push_back(v);
+   // seen[v] = true;
+   // b[v] = -numeric_limits<double>::infinity();
 
-   double Cutmin;
-   double Cutval;
-   Cutmin = 0.0;
-   for (int i = 0; i < n; i++)
-   {
-      if (!seen[i] && v != i)
-      {
-         b[i] = sol[v][i];
-         Cutmin += b[i];
-      }
-   }
+   // double Cutmin;
+   // double Cutval;
+   // Cutmin = 0.0;
+   // for (int i = 0; i < n; i++)
+   // {
+   //    if (!seen[i] && v != i)
+   //    {
+   //       b[i] = sol[v][i];
+   //       Cutmin += b[i];
+   //    }
+   // }
 
-   Smin = S;
-   Cutval = Cutmin;
+   // Smin = S;
+   // Cutval = Cutmin;
 
-   while (S.size() < n)
-   {
-      // Choose v not in S of maximum max-back value b(v)
-      double maxb = -numeric_limits<double>::infinity();
-      for (int i = 0; i < n; i++)
-         if (!seen[i])
-            if (maxb < b[i]){
-               maxb = b[i];
-               v = i;
-            }
+   // while (S.size() < n)
+   // {
+   //    // Choose v not in S of maximum max-back value b(v)
+   //    double maxb = -numeric_limits<double>::infinity();
+   //    for (int i = 0; i < n; i++)
+   //       if (!seen[i])
+   //          if (maxb < b[i]){
+   //             maxb = b[i];
+   //             v = i;
+   //          }
 
-      S.push_back(v);
-      seen[v] = true;
-      Cutval = Cutval + 2 - 2 * b[v];
+   //    S.push_back(v);
+   //    seen[v] = true;
+   //    Cutval = Cutval + 2 - 2 * b[v];
 
-      for (int t = 0; t < n; t++)
-      {
-         if (!seen[t] && v != t)
-            b[t] = b[t] + sol[v][t];
-      }
-      if (Cutval < Cutmin)
-      {
-         Cutmin = Cutval;
-         Smin = S;
-      }
-   }
+   //    for (int t = 0; t < n; t++)
+   //    {
+   //       if (!seen[t] && v != t)
+   //          b[t] = b[t] + sol[v][t];
+   //    }
+   //    if (Cutval < Cutmin)
+   //    {
+   //       Cutmin = Cutval;
+   //       Smin = S;
+   //    }
+   // }
 
-   if (Cutmin < 2 - tol)
-   {
-      fill(seen.begin(), seen.end(), false);
-      vector<int> v = Smin;
-      for (int i = 0; i < v.size(); i++)
-         seen[v[i]] = true;
-      vector<int> y;
-      for (int i = 0; i < n; i++)
-         if (!seen[i])
-            y.push_back(i);
-      if (v.size() > 0 && y.size() > 0)
-      {
-         IloExpr expr1(env);
-         for (int i = 0; i < v.size(); i++)
-            for (int j = 0; j < y.size(); j++)
-               expr1 += x[v[i]][y[j]] + x[y[j]][v[i]];
-         // cout << "Adding cut " << expr1 << " >= 2 " << endl;
-         add(expr1 >= 2).end();
-         expr1.end();
-      }
-   }
+   // if (Cutmin < 2 - tol)
+   // {
+   //    fill(seen.begin(), seen.end(), false);
+   //    vector<int> v = Smin;
+   //    for (int i = 0; i < v.size(); i++)
+   //       seen[v[i]] = true;
+   //    vector<int> y;
+   //    for (int i = 0; i < n; i++)
+   //       if (!seen[i])
+   //          y.push_back(i);
+   //    if (v.size() > 0 && y.size() > 0)
+   //    {
+   //       IloExpr expr1(env);
+   //       for (int i = 0; i < v.size(); i++)
+   //          for (int j = 0; j < y.size(); j++)
+   //             expr1 += x[v[i]][y[j]] + x[y[j]][v[i]];
+   //       // cout << "Adding cut " << expr1 << " >= 2 " << endl;
+   //       add(expr1 >= 2).end();
+   //       expr1.end();
+   //    }
+   // }
    seen.end();
    tour.end();
    for (IloInt i = 0; i < n; i++)
       sol[i].end();
    sol.end();
-}
-
-int toEdge(int x, int y, int n){
-	if(x == y)
-		return 0;
-	if(x>y)
-		swap(x,y);
-	if( x == 0)
-		return y-x;
-    else
-		return (n-1)*x-(x*(x+1)/2)+y;
 }
 
 int main(int argc, char **argv)
@@ -380,7 +412,7 @@ int main(int argc, char **argv)
 	LocalSearch ls(&in);
    sol = ls.GILSRVND();
    int UB = sol.costValueTSP + 1;
-
+   cout<<"Upper bound |- - - - - - - - - - - - - - -| "<<UB<<endl;
    // Read input to get dimmention and initialize MinCutter
    Data input(argc, argv[1]);
    input.readData();
@@ -462,10 +494,10 @@ int main(int argc, char **argv)
       IloNum tol = cplex.getParam(IloCplex::EpInt);
 
       // Subtour Elimination Callback
-      MyLazyCallback *lazyCbk = new (env) MyLazyCallback(env,x);
-      cplex.use(lazyCbk);
+      // MyLazyCallback *lazyCbk = new (env) MyLazyCallback(env,x);
+      // cplex.use(lazyCbk);
 
-      // cplex.use(SubtourEliminationCallback(env, x, tol));
+      cplex.use(SubtourEliminationCallback(env, x, tol));
       // cplex.use(MaxBack(env, x, tol));
       //      cplex.use(MinCut(env, x, tol));
       cplex.setParam(IloCplex::PreInd, IloFalse);

@@ -2,9 +2,15 @@
 #define MYLAZYCALLBACK_H
 
 #include <ilcplex/ilocplex.h>
-#include <vector>
-#include <mutex>
+#include <algorithm>
+#include <climits>
+#include <cstdlib>
+#include <exception>
 #include <iostream>
+#include <list>
+#include <mutex>
+#include <stack>
+#include <vector>
 using namespace std;
 
 class MyLazyCallback : public IloCplex::LazyConstraintCallbackI
