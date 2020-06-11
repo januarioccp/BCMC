@@ -4,7 +4,7 @@
 #define MAX_ITER 100
 #define MB_DEPTH 10
 
-MyCutCallback::MyCutCallback(IloEnv env, const IloArray<IloBoolVarArray> &par_x) : IloCplex::UserCutCallbackI(env), x(env),
+MyCutCallback::MyCutCallback(IloEnv env, const IloArray<IloBoolVarArray> &par_x) : IloCplex::UserCutCallbackI(env), x(env)
 {
     x = par_x;
 }
