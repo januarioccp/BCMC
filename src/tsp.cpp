@@ -28,7 +28,7 @@ int toEdge(int x, int y, int n){
 	if(x == y)
 		return 0;
 	if(x>y)
-		swap(x,y);
+		return toEdge(y,x,n);
 	if( x == 0)
 		return y-x;
     else
@@ -191,219 +191,6 @@ ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
    }
 }
 
-ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
-{
-
-   IloEnv env = getEnv();
-   IloInt n = x.getSize();
-
-   IloNumArray2 sol(env, n);
-   for (IloInt i = 0; i < n; i++)
-   {
-      sol[i] = IloNumArray(env, n);
-      for (IloInt j = 0; j < n; j++){
-         if(i < j)
-            sol[i][j] = abs(getValue(x[i][j]));
-         else
-            sol[i][j] = 0;
-      }
-   }
-
-   for (IloInt i = 0; i < n; i++)
-      for (IloInt j = i+1; j < n; j++)
-         sol[j][i] = sol[i][j];
-
-
-   // Declares a boolean vector of size n with false
-   vector<bool> seen(n, false);
-
-   // An array to store the subtours
-   vector<int> tour(n);
-
-   IloInt i, node, len, start;
-
-   // Vector os positions
-   vector<pair<int, int>> position;
-
-   for (i = 0; i < n; i++)
-      seen[i] = false;
-
-   start = 0;
-   node = 0;
-
-   // Start from position 0 in the tour
-   while (start < n)
-   {
-      // Find a node that has not been seen
-      for (node = 0; node < n; node++)
-         if (!seen[node])
-            break;
-      // Did you see every node? Time to break
-      if (node == n)
-         break;
-
-      // Start with lenght 0 and build a subtour
-      for (len = 0; len < n; len++)
-      {
-         // insert the unseen node in the tour
-         tour[start + len] = node;
-
-         //Be honest if you saw that node
-         seen[node] = true;
-
-         // Check nodes neighbors
-         for (i = 0; i < n; i++)
-         {
-            // Is it connected to someone?
-            // First time you see it? ...
-            if (sol[node][i] >= 1.0 - tol && !seen[i])
-            {
-               // ... better catch that guy
-               node = i;
-               break;
-            }
-         }
-
-         // Oh man, you could not find a neighbhor? It seens that you closed the loop
-         if (i == n)
-         {
-            // In this case, increase the size of the lenght
-            len++;
-            pair<int, int> pos(start, len);
-            position.push_back(pos);
-            //Start a new subtour
-            start += len;
-            break;
-         }
-      }
-   }
-
-   // for(auto city: tour)
-   //    cout<<setw(3)<<city;
-   // cout<<endl;
-
-   // for(auto p: position)
-   //    cout<<setw(3)<<p.first<<setw(3)<<p.second<<endl;
-   // cout<<endl;
-
-   // Create and add subtour constraint ---
-   // No more than 'length-1' edges between members of the subtour
-   if (position.size() > 1)
-   {
-      for (auto p: position)
-      {
-         IloExpr expr1(env);
-         int i,s;
-         for (i = p.first,s=0; s < p.second-1; i++,s++){
-            // cout<<"("<<
-            //    tour[i]<<","<<
-            //    tour[i+1]<<") ="<<
-            //    toEdge(tour[i],tour[i+1],n)<<
-            //       endl;
-               if(tour[i] < tour[i+1])
-                    expr1 += x[tour[i]][tour[i+1]];
-                else
-                    expr1 += x[tour[i+1]][tour[i]];
-         }
-         // cout<<"("<<
-         //       tour[i]<<","<<
-         //       tour[p.first]<<") ="<<
-         //       toEdge(tour[i],tour[p.first],n)<<
-         //          endl;
-         if(tour[i] < tour[p.first])
-            expr1 += x[tour[i]][tour[p.first]];
-         else
-            expr1 += x[tour[p.first]][tour[i]];
-         // cout << "Adding lazy constraint " << expr1 << " <= " << p.second - 1 << endl;
-         add(expr1 <= p.second - 1).end();
-         expr1.end();
-      }
-   }
-
-   // for (IloInt i = 0; i < n; i++)
-   //    for (IloInt j = 0; j < i; j++)
-   //       sol[j][i] = sol[i][j];
-
-   // vector<int> S;
-   // vector<int> Smin;
-   // vector<double> b(n);
-   // fill(seen.begin(), seen.end(), false);
-
-   // int v = rand() % n;
-   // S.push_back(v);
-   // seen[v] = true;
-   // b[v] = -numeric_limits<double>::infinity();
-
-   // double Cutmin;
-   // double Cutval;
-   // Cutmin = 0.0;
-   // for (int i = 0; i < n; i++)
-   // {
-   //    if (!seen[i] && v != i)
-   //    {
-   //       b[i] = sol[v][i];
-   //       Cutmin += b[i];
-   //    }
-   // }
-
-   // Smin = S;
-   // Cutval = Cutmin;
-
-   // while (S.size() < n)
-   // {
-   //    // Choose v not in S of maximum max-back value b(v)
-   //    double maxb = -numeric_limits<double>::infinity();
-   //    for (int i = 0; i < n; i++)
-   //       if (!seen[i])
-   //          if (maxb < b[i]){
-   //             maxb = b[i];
-   //             v = i;
-   //          }
-
-   //    S.push_back(v);
-   //    seen[v] = true;
-   //    Cutval = Cutval + 2 - 2 * b[v];
-
-   //    for (int t = 0; t < n; t++)
-   //    {
-   //       if (!seen[t] && v != t)
-   //          b[t] = b[t] + sol[v][t];
-   //    }
-   //    if (Cutval < Cutmin)
-   //    {
-   //       Cutmin = Cutval;
-   //       Smin = S;
-   //    }
-   // }
-
-   // if (Cutmin < 2 - tol)
-   // {
-   //    fill(seen.begin(), seen.end(), false);
-   //    vector<int> v = Smin;
-   //    for (int i = 0; i < v.size(); i++)
-   //       seen[v[i]] = true;
-   //    vector<int> y;
-   //    for (int i = 0; i < n; i++)
-   //       if (!seen[i])
-   //          y.push_back(i);
-   //    if (v.size() > 0 && y.size() > 0)
-   //    {
-   //       IloExpr expr1(env);
-   //       for (int i = 0; i < v.size(); i++)
-   //          for (int j = 0; j < y.size(); j++)
-   //             expr1 += x[v[i]][y[j]] + x[y[j]][v[i]];
-   //       // cout << "Adding cut " << expr1 << " >= 2 " << endl;
-   //       add(expr1 >= 2).end();
-   //       expr1.end();
-   //    }
-   // }
-   seen.end();
-   // tour.end();
-   for (IloInt i = 0; i < n; i++)
-      sol[i].end();
-   sol.end();
-}
-
 int main(int argc, char **argv)
 {
    // Run RVND to identify an UB
@@ -475,21 +262,23 @@ int main(int argc, char **argv)
       IloCplex cplex(tsp);
 
       // Declaring initial solution
-      IloNumArray x_start(env,(n*(n-1)/2));
+      IloNumArray x_start(env,n*n);
       for(int i = 0; i < x_start.getSize(); i++)
          x_start[i]=0;
 
       // Build initial solution
       for (int i = 0; i < sol.location.size() - 1; i++)
-		   x_start[toEdge(sol.location[i],sol.location[i+1],n)] = 1;
-      x_start[toEdge(sol.location.back(),sol.location.front(),n)] = 1;
-
+		   x_start[toEdge(sol.location[i]-1,sol.location[i+1]-1,n)] = 1;
+         
       IloNumVarArray y(env);
 	   for(int i = 0; i < n;i++)
          for(int j = i+1; j < n;j++)
 		      y.add(x[i][j]);
 
       cplex.addMIPStart(y, x_start);
+
+      // Write initial solution on a file
+      cplex.writeMIPStarts("start.mst");
 
       IloNum tol = cplex.getParam(IloCplex::EpInt);
 
