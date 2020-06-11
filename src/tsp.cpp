@@ -398,7 +398,7 @@ ILOLAZYCONSTRAINTCALLBACK2(SubtourEliminationCallback, Edges, x, IloNum, tol)
    //    }
    // }
    seen.end();
-   tour.end();
+   // tour.end();
    for (IloInt i = 0; i < n; i++)
       sol[i].end();
    sol.end();
@@ -494,10 +494,10 @@ int main(int argc, char **argv)
       IloNum tol = cplex.getParam(IloCplex::EpInt);
 
       // Subtour Elimination Callback
-      // MyLazyCallback *lazyCbk = new (env) MyLazyCallback(env,x);
-      // cplex.use(lazyCbk);
+      MyLazyCallback *lazyCbk = new (env) MyLazyCallback(env,x);
+      cplex.use(lazyCbk);
 
-      cplex.use(SubtourEliminationCallback(env, x, tol));
+      // cplex.use(SubtourEliminationCallback(env, x, tol));
       // cplex.use(MaxBack(env, x, tol));
       //      cplex.use(MinCut(env, x, tol));
       cplex.setParam(IloCplex::PreInd, IloFalse);

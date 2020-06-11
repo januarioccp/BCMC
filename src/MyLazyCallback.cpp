@@ -57,12 +57,12 @@ std::vector<IloConstraint> *MyLazyCallback::separate()
    vector<bool> seen(n, false);
 
    // An array to store the subtours
-   IloNumArray tour(env, n);
+   vector<int> tour(n);
 
    IloInt i, node, len, start;
 
    // Vector os positions
-   vector<pair<int, int>> p;
+   vector<pair<int, int>> position;
 
    for (i = 0; i < n; i++)
       seen[i] = false;
@@ -109,7 +109,7 @@ std::vector<IloConstraint> *MyLazyCallback::separate()
             // In this case, increase the size of the lenght
             len++;
             pair<int, int> pos(start, len);
-            p.push_back(pos);
+            position.push_back(pos);
             //Start a new subtour
             start += len;
             break;
@@ -119,27 +119,29 @@ std::vector<IloConstraint> *MyLazyCallback::separate()
 
    // Create and add subtour constraint ---
    // No more than 'length-1' edges between members of the subtour
-   if (p.size() > 1)
+   if (position.size() > 1)
    {
-      for (i = 0; i < p.size(); i++)
+      for (auto p: position)
       {
          IloExpr expr1(env);
-         for (int a = p[i].first; a < p[i].first + p[i].second; a++)
-            for (int b = a + 1; b < p[i].first + p[i].second; b++){
-                if(tour[a] < tour[b])
-                    expr1 += x[tour[a]][tour[b]];
+         int i,s;
+         for (i = p.first,s=0; s < p.second-1; i++,s++){
+               if(tour[i] < tour[i+1])
+                    expr1 += x[tour[i]][tour[i+1]];
                 else
-                    expr1 += x[tour[b]][tour[a]];
-            }
-         cout << "Adding lazy constraint " << expr1 << " <= " << p[i].second - 1 << endl;
-         constraints->push_back(expr1 <= p[i].second - 1);
+                    expr1 += x[tour[i+1]][tour[i]];
+         }
+         if(tour[i] < tour[p.first])
+            expr1 += x[tour[i]][tour[p.first]];
+         else
+            expr1 += x[tour[p.first]][tour[i]];
+         // cout << "Adding lazy constraint " << expr1 << " <= " << p.second - 1 << endl;
+         add(expr1 <= p.second - 1).end();
          expr1.end();
       }
    }
 
-
    seen.end();
-   tour.end();
    for (IloInt i = 0; i < n; i++)
       sol[i].end();
    sol.end();
