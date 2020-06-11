@@ -6,13 +6,12 @@
 #include "perturbation.h"
 #include "localsearch.h"
 #include "data.h"
-#include "MinCutter.h"
-MinCutter *mc;
 
 // CPLEX classes and global objects
 #include <ilcplex/ilocplex.h>
 #include "NodeInfo.h"
 #include "MyLazyCallback.h"
+#include "MyCutCallback.h"
 #define MAX_ITER 100
 typedef IloArray<IloBoolVarArray> Edges;
 
@@ -33,48 +32,6 @@ int toEdge(int x, int y, int n){
 		return y-x;
     else
 		return (n-1)*x-(x*(x+1)/2)+y;
-}
-
-ILOUSERCUTCALLBACK2(MinCut, Edges, x, IloNum, tol)
-{
-   if (getCurrentNodeDepth() > 7)
-   {
-      return;
-   }
-
-   IloEnv env = getEnv();
-
-   // Number of vertices
-   IloInt n = x.getSize();
-
-   // Retrieve solution information
-   vector<vector<double>> w(n);
-   for (IloInt i = 0; i < n; i++)
-   {
-      w[i].resize(n);
-      for (IloInt j = 0; j < n; j++)
-         w[i][j] = abs(double(getValue(x[i][j])));
-   }
-
-   // Creating an adjacency matrix
-   for (IloInt i = 0; i < n; i++)
-      for (IloInt j = 0; j < i; j++)
-         w[j][i] = w[i][j];
-
-   mc->MINIMUMCUTUPDATE(w);
-
-   // Add the constraint
-   if (mc->getMinCut() < 2.0 - tol)
-   {
-      pair<vector<int>, vector<int>> partition = mc->getPartition();
-
-      IloExpr expr1(env);
-      for (auto i : partition.first)
-         for (auto j : partition.second)
-            expr1 += x[i][j] + x[j][i];
-      add(expr1 >= 2).end();
-      expr1.end();
-   }
 }
 
 ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
@@ -174,21 +131,6 @@ ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
          expr1.end();
       }
    }
-   else{
-      mc->MINIMUMCUTUPDATE(sol);
-      // Add the constraint
-      if (mc->getMinCut() < 2.0 - tol)
-      {
-         pair<vector<int>, vector<int>> partition = mc->getPartition();
-
-         IloExpr expr1(env);
-         for (auto i : partition.first)
-            for (auto j : partition.second)
-               expr1 += x[i][j] + x[j][i];
-         add(expr1 >= 2).end();
-         expr1.end();
-      }
-   }
 }
 
 int main(int argc, char **argv)
@@ -197,14 +139,21 @@ int main(int argc, char **argv)
    Input in(argc, argv);   
    Solution sol(&in);
 	LocalSearch ls(&in);
-   sol = ls.GILSRVND();
-   int UB = sol.costValueTSP + 1;
-   cout<<"Upper bound |- - - - - - - - - - - - - - -| "<<UB<<endl;
-   // Read input to get dimmention and initialize MinCutter
+   int UB = numeric_limits<int>::max();
+   if(argc < 3){
+      sol = ls.GILSRVND();
+      UB = sol.costValueTSP + 1;
+   }
+   else{
+      UB = atoi(argv[2])+1;
+   }
+
+   cout<<"Upper bound |- - - - - - - - - - - - - - - -| "<<UB<<endl;
+
+   // Read input to get instance size and initialize MinCutter
    Data input(argc, argv[1]);
    input.readData();
    IloInt n = input.getDimension();
-   mc = new MinCutter(n);
 
    //Environment
    IloEnv env;
@@ -286,7 +235,9 @@ int main(int argc, char **argv)
       MyLazyCallback *lazyCbk = new (env) MyLazyCallback(env,x);
       cplex.use(lazyCbk);
 
-      // cplex.use(SubtourEliminationCallback(env, x, tol));
+      MyCutCallback *cutCbk = new (env) MyCutCallback(env,x);
+      cplex.use(cutCbk);
+
       // cplex.use(MaxBack(env, x, tol));
       //      cplex.use(MinCut(env, x, tol));
       cplex.setParam(IloCplex::PreInd, IloFalse);
@@ -345,7 +296,6 @@ int main(int argc, char **argv)
 #endif
 
       // sec.end();
-      delete mc;
       for (IloInt i = 0; i < n; i++)
          dist[i].end();
       dist.end();

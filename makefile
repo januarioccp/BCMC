@@ -11,11 +11,11 @@ CPLEXLIBDIR   = $(CPLEXDIR)/lib/x86-64_osx/static_pic
 CONCERTLIBDIR = $(CONCERTDIR)/lib/x86-64_osx/static_pic
 
 #### define o compilador
-CPPC = g++
+CPPC = g++ -O3 -std=c++2a 
 #############################
 
 #### opcoes de compilacao e includes
-CCOPT = $(BITS_OPTION) -O3 -g -fPIC -fexceptions -DNDEBUG -DIL_STD -std=c++2a
+CCOPT = $(BITS_OPTION) -g -fPIC -fexceptions -DNDEBUG -DIL_STD
 CONCERTINCDIR = $(CONCERTDIR)/include
 CPLEXINCDIR   = $(CPLEXDIR)/include
 CCFLAGS = $(CCOPT) -I$(CPLEXINCDIR) -I$(CONCERTINCDIR)
@@ -50,7 +50,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo  "\033[31m \nCompiling $<: \033[0m"
 	$(CPPC) $(CCFLAGS) -c $< -o $@
 	@echo  "\033[32m \ncreating $< dependency file: \033[0m"
-	$(CPPC) -O3 -std=c++2a  -MM $< > $(basename $@).d
+	$(CPPC) -MM $< > $(basename $@).d
 	@mv -f $(basename $@).d $(basename $@).d.tmp #proximas tres linhas colocam o diretorio no arquivo de dependencias (g++ nao coloca, surprisingly!)
 	@sed -e 's|.*:|$(basename $@).o:|' < $(basename $@).d.tmp > $(basename $@).d
 	@rm -f $(basename $@).d.tmp

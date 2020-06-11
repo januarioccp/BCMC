@@ -3,57 +3,59 @@
 
 MyLazyCallback::MyLazyCallback(IloEnv env, const IloArray<IloBoolVarArray> &par_x) : IloCplex::LazyConstraintCallbackI(env), x(env)
 {
-    x = par_x;
+   x = par_x;
 }
 
 IloCplex::CallbackI *MyLazyCallback::duplicateCallback() const
 {
-    return new (getEnv()) MyLazyCallback(getEnv(), x);
+   return new (getEnv()) MyLazyCallback(getEnv(), x);
 }
 
 void MyLazyCallback::main()
 {
-    // You shall not pass... actually, only one thread will pass
-    lazyMutex.lock();
+   // You shall not pass... actually, only one thread will pass
+   lazyMutex.lock();
 
-    // Use separate function to identify the constraints
-    std::vector<IloConstraint> *cons = separate();
-    for (int i = 0; i < cons->size(); i++){
-        // Add each one of the constraints
-        add((*cons)[i]);
-        (*cons)[i].end();
-    }
-    delete cons;
-    lazyMutex.unlock();
+   // Use separate function to identify the constraints
+   std::vector<IloConstraint> *cons = separate();
+   for (int i = 0; i < cons->size(); i++)
+   {
+      // Add each one of the constraints
+      add((*cons)[i]);
+      (*cons)[i].end();
+   }
+   delete cons;
+   lazyMutex.unlock();
 }
 
 std::vector<IloConstraint> *MyLazyCallback::separate()
 {
-    double EPSILON = 0.000001;
+   double EPSILON = 0.000001;
 
-    std::vector<IloConstraint> *constraints = new std::vector<IloConstraint>();
+   std::vector<IloConstraint> *constraints = new std::vector<IloConstraint>();
 
-    IloEnv env = getEnv();
-    IloInt n = x.getSize();
+   IloEnv env = getEnv();
+   IloInt n = x.getSize();
 
-    
    IloNumArray2 sol(env, n);
    for (IloInt i = 0; i < n; i++)
    {
       sol[i] = IloNumArray(env, n);
-      for (IloInt j = 0; j < n; j++){
-         if(i < j)
+      for (IloInt j = 0; j < n; j++)
+      {
+         if (i < j)
             sol[i][j] = abs(getValue(x[i][j]));
          else
             sol[i][j] = 0;
       }
    }
 
+   // Creating an adjacency matrix
    for (IloInt i = 0; i < n; i++)
-      for (IloInt j = i+1; j < n; j++)
+      for (IloInt j = i + 1; j < n; j++)
          sol[j][i] = sol[i][j];
 
-    // Declares a boolean vector of size n with false
+   // Declares a boolean vector of size n with false
    vector<bool> seen(n, false);
 
    // An array to store the subtours
@@ -121,17 +123,18 @@ std::vector<IloConstraint> *MyLazyCallback::separate()
    // No more than 'length-1' edges between members of the subtour
    if (position.size() > 1)
    {
-      for (auto p: position)
+      for (auto p : position)
       {
          IloExpr expr1(env);
-         int i,s;
-         for (i = p.first,s=0; s < p.second-1; i++,s++){
-               if(tour[i] < tour[i+1])
-                    expr1 += x[tour[i]][tour[i+1]];
-                else
-                    expr1 += x[tour[i+1]][tour[i]];
+         int i, s;
+         for (i = p.first, s = 0; s < p.second - 1; i++, s++)
+         {
+            if (tour[i] < tour[i + 1])
+               expr1 += x[tour[i]][tour[i + 1]];
+            else
+               expr1 += x[tour[i + 1]][tour[i]];
          }
-         if(tour[i] < tour[p.first])
+         if (tour[i] < tour[p.first])
             expr1 += x[tour[i]][tour[p.first]];
          else
             expr1 += x[tour[p.first]][tour[i]];
@@ -146,7 +149,7 @@ std::vector<IloConstraint> *MyLazyCallback::separate()
       sol[i].end();
    sol.end();
 
-    return constraints;
+   return constraints;
 }
 
 std::mutex MyLazyCallback::lazyMutex;

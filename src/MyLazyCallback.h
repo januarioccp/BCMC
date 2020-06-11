@@ -1,7 +1,10 @@
 #ifndef MYLAZYCALLBACK_H
 #define MYLAZYCALLBACK_H
 
+// CPLEX
 #include <ilcplex/ilocplex.h>
+
+// STL
 #include <algorithm>
 #include <climits>
 #include <cstdlib>
