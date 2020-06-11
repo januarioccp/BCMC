@@ -7,14 +7,14 @@ ostream &operator<<(ostream &os, const MinCutter &m)
     os << "{";
     for (auto i : m.S1)
     {
-        os << i;
+        os << i+1;
         if (i != m.S1.back())
             os << ",";
     }
     os << "}{";
     for (auto i : m.S2)
     {
-        os << i;
+        os << i+1;
         if (i != m.S2.back())
             os << ",";
     }
@@ -22,59 +22,47 @@ ostream &operator<<(ostream &os, const MinCutter &m)
     return os;
 }
 
-MinCutter::MinCutter(vector<vector<double>> &w)
+MinCutter::MinCutter(const vector<vector<double> > &wf)
 {
+    this->w = wf;
+    this->MINIMUMCUT();
+}
+
+MinCutter::~MinCutter()
+{
+    delete this->dSet;
+}
+
+void MinCutter::MINIMUMCUT()
+{
+    int n = this->w.size();
     
-    n = w.size();
-
     // You need to find the value of the minimum cut
     this->minCut = numeric_limits<double>::max();
 
     // Create a vertex set
     G.resize(n);
-
-    this->MINIMUMCUT(w);
-}
-
-MinCutter::MinCutter(int size){
-    this-> n = size;
-    // You need to find the value of the minimum cut
-    this->minCut = numeric_limits<double>::max();
-    dSet = new DisjSet(n);
-    // Create a vertex set
-    G.resize(n);
-}
-
-void MinCutter::MINIMUMCUTUPDATE( vector<vector<double> > &w){
-    // You need to find the value of the minimum cut
-    this->minCut = numeric_limits<double>::max();
-    dSet->makeSet();
-    for (unsigned i = 0; i < G.size(); i++)
-        G[i] = i;
-    while (G.size() > 1)
-        MINIMUMCUTPHASE(w);
-}
-
-void MinCutter::MINIMUMCUT(vector<vector<double> > &w)
-{
     for (unsigned i = 0; i < G.size(); i++)
         G[i] = i;
 
-    // Do you wand randomize the set of vertices? - use -std=c++2a
+    // Randomize the set of vertices - use -std=c++2a
     // obtain a time-based seed:
-    // unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    // shuffle(G.begin(), G.end(),default_random_engine(seed));
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    shuffle(G.begin(), G.end(),default_random_engine(seed));
 
     // Use a disjoint set data structure to shrink G later
     dSet = new DisjSet(n);
 
     // Compute the minimumCut while there is
-    // at least 2 vertices -> shrink G
+    // at least 2 vertices
     while (G.size() > 1)
-        MINIMUMCUTPHASE(w);
+    {
+        // Shrink G
+        G.erase(remove(G.begin(), G.end(), MINIMUMCUTPHASE()), G.end());
+    }
 }
 
-void MinCutter::MINIMUMCUTPHASE(vector<vector<double> > &w)
+int MinCutter::MINIMUMCUTPHASE()
 {
     // A container to the vertices in this phase
     vector<int> A;
@@ -87,7 +75,7 @@ void MinCutter::MINIMUMCUTPHASE(vector<vector<double> > &w)
         V.push_back(make_pair(0,i));
 
     // Choose a vector from v=2 to insert in A
-    A.push_back(G.front());
+    A.push_back(V.front().second);
 
     // Remove the vertex inserted in A from G
     V.erase(V.begin());
@@ -103,7 +91,6 @@ void MinCutter::MINIMUMCUTPHASE(vector<vector<double> > &w)
     // Store the initial size of G
     int n = V.size() + A.size();
 
-    auto mtcv = V.front();;
     // You need to do until A is as large as the initial size of G
     while (A.size() < n)
     {
@@ -114,17 +101,17 @@ void MinCutter::MINIMUMCUTPHASE(vector<vector<double> > &w)
         // Build heap
         make_heap(V.begin(),V.end());
         
-        // Select the most tightly connected vertex - mtcv
-        mtcv = V.front();
-
         // Store current cut_of_the_phase value
-        cut_of_the_phase = mtcv.first;
+        cut_of_the_phase = V.front().first;
+
+        // Select the most tightly connected vertex - mtcv
+        pair<double,int> mtcv = V.front();
         
         // Add to A the most tightly connected vertex - mtcv
         A.push_back(mtcv.second);
 
         // Remove mtcv from V
-        V.erase(V.begin());
+        V.erase(remove(V.begin(), V.end(), mtcv), V.end());
     }
 
     // Before last
@@ -148,17 +135,11 @@ void MinCutter::MINIMUMCUTPHASE(vector<vector<double> > &w)
     // Merge the two last vertex added last
     dSet->Union(s, last);
 
-    // Update weight of merged vertices
-    for (auto i : A){
+    for (auto i : A)
+    {
         w[i][s] += w[i][last];
         w[s][i] = w[i][s];
     }
 
-    // Remove mtcv from G
-    G.erase(G.begin());
-}
-
-MinCutter::~MinCutter()
-{
-    delete this->dSet;
+    return last;
 }
