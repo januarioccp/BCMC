@@ -15,7 +15,6 @@ void DisjSet::makeSet(){
     }
 }
 
-
 int DisjSet::find(int x) 
     { 
         // Finds the representative of the set 
