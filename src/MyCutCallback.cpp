@@ -7,7 +7,11 @@ MyCutCallback::MyCutCallback(IloEnv env, const IloArray<IloBoolVarArray> &par_x)
 {
     x = par_x;
     IloInt n = x.getSize();
-    
+    myMinCut = nullptr;
+}
+
+MyCutCallback::~MyCutCallback(){
+    delete myMinCut;
 }
 
 IloCplex::CallbackI *MyCutCallback::duplicateCallback() const
@@ -57,14 +61,16 @@ void MyCutCallback::main()
         for (IloInt j = i+1; j < n; j++)
             w[j][i] = w[i][j];
 
-    MinCutter m(w);
-    cout<<m<<endl;
+    if(myMinCut == nullptr)
+        myMinCut = new MinCutter(w);
+    else
+        myMinCut->updateMinCut(w);
 
     // Add the constraint
-    if (m.getMinCut() < 2.0)
+    if (myMinCut->getMinCut() < 2.0 - EPSILON)
     {
         // cout<<__FILE__<<" "<<__LINE__<<endl;
-        pair<vector<int>, vector<int>> partition = m.getPartition();
+        pair<vector<int>, vector<int>> partition = myMinCut->getPartition();
         // double suma = 0;
         IloExpr expr1(env);
         for (auto i : partition.first)
@@ -84,6 +90,7 @@ void MyCutCallback::main()
         expr1.end();
     }
 
+    
     data->addIteration();
     lazyMutex.unlock();
 }

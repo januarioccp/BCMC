@@ -24,6 +24,7 @@ class MyCutCallback : public IloCplex::UserCutCallbackI
 {
 public:
   MyCutCallback(IloEnv env, const IloArray<IloBoolVarArray> &par_x);
+  ~MyCutCallback();
   IloCplex::CallbackI *duplicateCallback() const;
   void main();
 
@@ -31,6 +32,7 @@ public:
 
 private:
   IloArray<IloBoolVarArray> x;
+  MinCutter* myMinCut;
 };
 
 #endif
