@@ -16,11 +16,12 @@ private:
     vector<int> G;
     DisjSet* dSet;
     vector<vector<double> > w;
-    void MINIMUMCUT();
+    void minimumCut();
     int MINIMUMCUTPHASE();
     friend ostream& operator<<(ostream& os, const MinCutter& dt);
 
 public:
+    void updateMinCut(const vector<vector<double> > &w);
     MinCutter(const vector<vector<double> > &w);
     ~MinCutter();
     double getMinCut(){ return minCut;}

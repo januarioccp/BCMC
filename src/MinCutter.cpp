@@ -22,10 +22,18 @@ ostream &operator<<(ostream &os, const MinCutter &m)
     return os;
 }
 
+void MinCutter::updateMinCut(const vector<vector<double> > &wf){
+    this->w.clear();
+    this->w = wf;
+    this->minimumCut();
+}
+
 MinCutter::MinCutter(const vector<vector<double> > &wf)
 {
     this->w = wf;
-    this->MINIMUMCUT();
+    dSet = nullptr;
+    this->minimumCut();
+
 }
 
 MinCutter::~MinCutter()
@@ -33,7 +41,7 @@ MinCutter::~MinCutter()
     delete this->dSet;
 }
 
-void MinCutter::MINIMUMCUT()
+void MinCutter::minimumCut()
 {
     int n = this->w.size();
     
@@ -47,11 +55,14 @@ void MinCutter::MINIMUMCUT()
 
     // Randomize the set of vertices - use -std=c++2a
     // obtain a time-based seed:
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    shuffle(G.begin(), G.end(),default_random_engine(seed));
+    // unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    // shuffle(G.begin(), G.end(),default_random_engine(seed));
 
     // Use a disjoint set data structure to shrink G later
-    dSet = new DisjSet(n);
+    if(dSet == nullptr)
+        dSet = new DisjSet(n);
+    else
+        dSet->makeSet();
 
     // Compute the minimumCut while there is
     // at least 2 vertices
