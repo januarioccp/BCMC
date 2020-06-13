@@ -14,6 +14,7 @@ private:
     vector<int> S1;
     vector<int> S2;
     vector<int> G;
+    vector<int> A;
     DisjSet* dSet;
     vector<vector<double> > w;
     void minimumCut();

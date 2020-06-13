@@ -26,8 +26,7 @@ void MyCutCallback::main()
 
     NodeInfo *data = dynamic_cast<NodeInfo *>(getNodeData());
 
-    if (!data)
-    {
+    if (!data){
         if (NodeInfo::rootData == NULL)
             NodeInfo::initRootData();
         data = NodeInfo::rootData;
@@ -43,23 +42,13 @@ void MyCutCallback::main()
     IloInt n = x.getSize(); // Number of vertices
 
     // Retrieve solution information
-    vector<vector<double>> w(n);
-    for (IloInt i = 0; i < n; i++)
-    {
-        w[i].resize(n);
-        for (IloInt j = 0; j < n; j++){
-            if (i < j){
+    vector<vector<double>> w = vector<vector<double>>(n,vector<double>(n,0));
+    for (IloInt i = 0; i < n; i++){
+        for (IloInt j = i+1; j < n; j++){
                 w[i][j] = abs(getValue(x[i][j]));
-            }
-            else
-                w[i][j] = 0;
+                w[j][i] = w[i][j];
         }
-    }
-
-    // Creating an adjacency matrix
-    for (IloInt i = 0; i < n; i++)
-        for (IloInt j = i+1; j < n; j++)
-            w[j][i] = w[i][j];
+    }       
 
     if(myMinCut == nullptr)
         myMinCut = new MinCutter(w);
@@ -69,27 +58,18 @@ void MyCutCallback::main()
     // Add the constraint
     if (myMinCut->getMinCut() < 2.0 - EPSILON)
     {
-        // cout<<__FILE__<<" "<<__LINE__<<endl;
-        pair<vector<int>, vector<int>> partition = myMinCut->getPartition();
-        // double suma = 0;
+        pair<vector<int>, vector<int>> partition = myMinCut->getPartition();   
         IloExpr expr1(env);
         for (auto i : partition.first)
-            for (auto j : partition.second)
-            {
+            for (auto j : partition.second){
                 if (i < j)
                     expr1 += x[i][j];
                 else
                     expr1 += x[j][i];
-                // suma+=w[i][j];
-                // cout<<setw(7)<<w[i][j];
             }
-            // cout<<endl;
-        // cout<<"Cut "<<expr1<<endl;
-        //cout<<suma<<endl;
         add(expr1 >= 2).end();
         expr1.end();
     }
-
     
     data->addIteration();
     lazyMutex.unlock();

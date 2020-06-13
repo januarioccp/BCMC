@@ -23,7 +23,6 @@ ostream &operator<<(ostream &os, const MinCutter &m)
 }
 
 void MinCutter::updateMinCut(const vector<vector<double> > &wf){
-    this->w.clear();
     this->w = wf;
     this->minimumCut();
 }
@@ -33,7 +32,6 @@ MinCutter::MinCutter(const vector<vector<double> > &wf)
     this->w = wf;
     dSet = nullptr;
     this->minimumCut();
-
 }
 
 MinCutter::~MinCutter()
@@ -43,8 +41,7 @@ MinCutter::~MinCutter()
 
 void MinCutter::minimumCut()
 {
-    int n = this->w.size();
-    
+    int n = w.size();
     // You need to find the value of the minimum cut
     this->minCut = numeric_limits<double>::max();
 
@@ -76,7 +73,9 @@ void MinCutter::minimumCut()
 int MinCutter::MINIMUMCUTPHASE()
 {
     // A container to the vertices in this phase
-    vector<int> A;
+    // A.clear();
+    A.resize(0);
+    
 
     // Store a copy of G but in a vector of pair
     vector< pair<double,int> > V;
@@ -105,7 +104,7 @@ int MinCutter::MINIMUMCUTPHASE()
     // You need to do until A is as large as the initial size of G
     while (A.size() < n)
     {
-        //Update weights
+        //Update weights based on the last inserted
         for(auto &i:V)
             i.first+=w[A.back()][i.second];
         
@@ -122,7 +121,7 @@ int MinCutter::MINIMUMCUTPHASE()
         A.push_back(mtcv.second);
 
         // Remove mtcv from V
-        V.erase(remove(V.begin(), V.end(), mtcv), V.end());
+        V.erase(V.begin());
     }
 
     // Before last

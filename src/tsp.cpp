@@ -12,6 +12,7 @@
 #include "NodeInfo.h"
 #include "MyLazyCallback.h"
 #include "MyCutCallback.h"
+#include "MyBranchCallback.h"
 #define MAX_ITER 100
 typedef IloArray<IloBoolVarArray> Edges;
 
@@ -237,6 +238,9 @@ int main(int argc, char **argv)
 
       MyCutCallback *cutCbk = new (env) MyCutCallback(env,x);
       cplex.use(cutCbk);
+
+      MyBranchCallback *branchCbk = new (env) MyBranchCallback(env);
+      cplex.use(branchCbk);
 
       // cplex.use(MaxBack(env, x, tol));
       //      cplex.use(MinCut(env, x, tol));
