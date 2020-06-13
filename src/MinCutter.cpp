@@ -50,11 +50,6 @@ void MinCutter::minimumCut()
     for (unsigned i = 0; i < G.size(); i++)
         G[i] = i;
 
-    // Randomize the set of vertices - use -std=c++2a
-    // obtain a time-based seed:
-    // unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    // shuffle(G.begin(), G.end(),default_random_engine(seed));
-
     // Use a disjoint set data structure to shrink G later
     if(dSet == nullptr)
         dSet = new DisjSet(n);
