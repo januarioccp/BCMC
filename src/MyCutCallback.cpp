@@ -8,10 +8,13 @@ MyCutCallback::MyCutCallback(IloEnv env, const IloArray<IloBoolVarArray> &par_x)
     x = par_x;
     IloInt n = x.getSize();
     myMinCut = nullptr;
+    myMaxBack = nullptr;
 }
 
-MyCutCallback::~MyCutCallback(){
+MyCutCallback::~MyCutCallback()
+{
     delete myMinCut;
+    delete myMaxBack;
 }
 
 IloCplex::CallbackI *MyCutCallback::duplicateCallback() const
@@ -26,13 +29,14 @@ void MyCutCallback::main()
 
     NodeInfo *data = dynamic_cast<NodeInfo *>(getNodeData());
 
-    if (!data){
+    if (!data)
+    {
         if (NodeInfo::rootData == NULL)
             NodeInfo::initRootData();
         data = NodeInfo::rootData;
     }
 
-    if (data->getIterations() >= MAX_ITER || data->depth > MB_DEPTH)
+    if (data->getIterations() >= MAX_ITER)
     {
         lazyMutex.unlock();
         return;
@@ -42,26 +46,53 @@ void MyCutCallback::main()
     IloInt n = x.getSize(); // Number of vertices
 
     // Retrieve solution information
-    vector<vector<double>> w = vector<vector<double>>(n,vector<double>(n,0));
-    for (IloInt i = 0; i < n; i++){
-        for (IloInt j = i+1; j < n; j++){
-                w[i][j] = abs(getValue(x[i][j]));
-                w[j][i] = w[i][j];
-        }
-    }       
-
-    if(myMinCut == nullptr)
-        myMinCut = new MinCutter(w);
-    else
-        myMinCut->updateMinCut(w);
-
-    // Add the constraint
-    if (myMinCut->getMinCut() < 2.0 - EPSILON)
+    vector<vector<double>> w = vector<vector<double>>(n, vector<double>(n, 0));
+    for (IloInt i = 0; i < n; i++)
     {
-        pair<vector<int>, vector<int>> partition = myMinCut->getPartition();   
+        for (IloInt j = i + 1; j < n; j++)
+        {
+            w[i][j] = abs(getValue(x[i][j]));
+            w[j][i] = w[i][j];
+        }
+    }
+
+    if (myMaxBack == nullptr)
+        myMaxBack = new MaxBacker(w);
+     else
+         myMaxBack->updateMaxBack(w);
+
+    // // True if maxback heuristic is supposed to be used
+    bool useMB = false;
+
+    // // True if mincut algorithm is supposed to be used
+    bool useMC = false;
+
+    if (true && data->depth < MB_DEPTH)
+    {
+        if (myMinCut == nullptr)
+            myMinCut = new MinCutter(w);
+        else
+            myMinCut->updateMinCut(w);
+
+        if (myMinCut->getMinCut() < 2.0 - EPSILON)
+            useMC = true;
+    }
+    else
+        useMB = false;
+
+    // Add the cut
+    if (useMB || useMC)
+    {
+        pair<vector<int>, vector<int>> partition;
+        if(useMC)
+            partition = myMinCut->getPartition();
+        else
+            partition = myMaxBack->getPartition();
+        
         IloExpr expr1(env);
         for (auto i : partition.first)
-            for (auto j : partition.second){
+            for (auto j : partition.second)
+            {
                 if (i < j)
                     expr1 += x[i][j];
                 else
@@ -70,7 +101,7 @@ void MyCutCallback::main()
         add(expr1 >= 2).end();
         expr1.end();
     }
-    
+
     data->addIteration();
     lazyMutex.unlock();
 }

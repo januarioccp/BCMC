@@ -1,150 +1,154 @@
-#include "MinCutter.h"
-#include "DisjSet.h"
+#include "MaxBacker.h"
 
-ostream &operator<<(ostream &os, const MinCutter &m)
+ostream &operator<<(ostream &os, MaxBacker &m)
 {
-    os << m.minCut << endl;
+    pair<vector<int>, vector<int>> S = m.getPartition();
+    os << m.Cutmin << endl;
     os << "{";
-    for (auto i : m.S1)
+    for (auto i : S.first)
     {
-        os << i+1;
-        if (i != m.S1.back())
+        os << i + 1;
+        if (i != S.first.back())
             os << ",";
     }
     os << "}{";
-    for (auto i : m.S2)
+    for (auto i : S.second)
     {
-        os << i+1;
-        if (i != m.S2.back())
+        os << i + 1;
+        if (i != S.second.back())
             os << ",";
     }
     os << "}";
     return os;
 }
 
-void MinCutter::updateMinCut(const vector<vector<double> > &wf){
-    this->w = wf;
-    this->minimumCut();
-}
-
-MinCutter::MinCutter(const vector<vector<double> > &wf)
+void MaxBacker::updateMaxBack(const vector<vector<double>> &wf)
 {
     this->w = wf;
-    dSet = nullptr;
-    this->minimumCut();
+    this->maximumBack();
 }
 
-MinCutter::~MinCutter()
+MaxBacker::MaxBacker(const vector<vector<double>> &wf)
 {
-    delete this->dSet;
+    this->w = wf;
+    this->maximumBack();
 }
 
-void MinCutter::minimumCut()
+void MaxBacker::maximumBack()
 {
+    // // Number of vertices
+//     int a = 1;
+//     int N = w.size();
+//     std::vector<bool> S1(N);
+//     std::vector<bool> S = S1;
+//     S[a] = true;
+//     int s0_size = 1;
+//     std::vector<double> b(N);
+
+//     double cutval = 0;
+//     double cutmin = std::numeric_limits<double>::infinity();
+
+//     for (int i = 0; i < N; i++)
+//     {
+//         if (i == a)
+//         {
+//             b[i] = -std::numeric_limits<double>::infinity();
+//             continue;
+//         }
+//         b[i] = w[a][i];
+//         cutval += b[i];
+//     }
+
+//     while (s0_size < S.size() - 1)
+//     {
+//         int maxB = std::max_element(b.begin(), b.end()) - b.begin();
+//         s0_size++;
+
+//         cutval += 2 - 2 * b[maxB];
+
+//         // std::cout << cutval << "\n";
+
+//         S[maxB] = true;
+//         b[maxB] = -std::numeric_limits<double>::infinity();
+
+//         for (int i = 0; i < N; i++)
+//         {
+//             if (S[i] == true)
+//             {
+//                 continue;
+//             }
+//             b[i] += w[maxB][i];
+//         }
+
+//         if (cutval - cutmin < 0)
+//         {
+//             cutmin = cutval;
+//             S1 = S;
+//         }
+//     }
+
+//     cout<<"Cutmin "<<cutmin<<endl;
+
+
+// //////////////////////////////////////////
+
+
+    // Number of vertices
     int n = w.size();
-    // You need to find the value of the minimum cut
-    this->minCut = numeric_limits<double>::max();
 
-    // Create a vertex set
-    G.resize(n);
-    for (unsigned i = 0; i < G.size(); i++)
-        G[i] = i;
+    // Create a vertex set in a vector of pair
+    vector<pair<double, int> > V;
+    for (unsigned i = 0; i < n; i++)
+        V.push_back(make_pair(0, i));
 
-    // Use a disjoint set data structure to shrink G later
-    if(dSet == nullptr)
-        dSet = new DisjSet(n);
-    else
-        dSet->makeSet();
-
-    // Compute the minimumCut while there is
-    // at least 2 vertices
-    while (G.size() > 1)
-    {
-        // Shrink G
-        G.erase(remove(G.begin(), G.end(), MINIMUMCUTPHASE()), G.end());
-    }
-}
-
-int MinCutter::MINIMUMCUTPHASE()
-{
-    // A container to the vertices in this phase
-    // A.clear();
-    A.resize(0);
-    
-
-    // Store a copy of G but in a vector of pair
-    vector< pair<double,int> > V;
-
-    // Copying G to V
-    for(auto i:G)
-        V.push_back(make_pair(0,i));
-
-    // Choose a vector from v=2 to insert in A
-    A.push_back(V.front().second);
-
-    // Remove the vertex inserted in A from G
+    S.clear();
+    S.push_back(V.front().second);
     V.erase(V.begin());
+    Smin = S;
 
-    // Initialize with the minimum value, because you
-    // want to find the maximum cut value
-    double cut_of_the_phase;
+    // You need to find the value of the maxback
+    Cutmin = 0.0;
+    for (auto i : V)
+        Cutmin += w[S.back()][i.second];
+    double Cutval = Cutmin;
 
-    // Use this auxiliary variable to help you to find
-    // the largest value in each phase
-    double cutWeight = 0.0;
-
-    // Store the initial size of G
-    int n = V.size() + A.size();
-
-    // You need to do until A is as large as the initial size of G
-    while (A.size() < n)
+    while (S.size() < n)
     {
         //Update weights based on the last inserted
-        for(auto &i:V)
-            i.first+=w[A.back()][i.second];
-        
+        for (auto &i : V)
+            i.first += w[S.back()][i.second];
+
         // Build heap
-        make_heap(V.begin(),V.end());
-        
-        // Store current cut_of_the_phase value
-        cut_of_the_phase = V.front().first;
+        make_heap(V.begin(), V.end());
 
-        // Select the most tightly connected vertex - mtcv
-        pair<double,int> mtcv = V.front();
-        
-        // Add to A the most tightly connected vertex - mtcv
-        A.push_back(mtcv.second);
+        // Choose v not in S of maximum max-back value - mmbv
+        pair<double, int> mmbv = V.front();
 
-        // Remove mtcv from V
+        // Add to S v not in S of maximum max-back value - mmbv
+        S.push_back(mmbv.second);
+
+        // Remove mmbv from V
         V.erase(V.begin());
+
+        Cutval = Cutval + 2.0 - 2.0 * mmbv.first;
+
+        if (Cutval < Cutmin)
+        {
+            Cutmin = Cutval;
+            Smin = S;
+        }
     }
+    cout<<"Cutmin"<<Cutmin<<endl;
+}
 
-    // Before last
-    int s = *(A.end() - 2);
-    // Last added
-    int last = A.back();
-
-    if (cut_of_the_phase < this->minCut)
-    {
-        this->minCut = cut_of_the_phase;
-        // Clear the partition set every time???
-        S1.clear();
-        S2.clear();
-        for (int i = 0; i < w.size(); i++)
-            if (dSet->find(last) == dSet->find(i))
-                S1.push_back(i);
-            else
-                S2.push_back(i);
-    }
-
-    // Merge the two last vertex added last
-    dSet->Union(s, last);
-
-    for (auto i : A)
-    {
-        w[i][s] += w[i][last];
-        w[s][i] = w[i][s];
-    }
-
-    return last;
+pair<vector<int>, vector<int> > MaxBacker::getPartition(){
+    vector<bool> seen(w.size(),false);
+    S.clear();
+    for(auto i: Smin)
+        seen[i] = true;
+    for(int i = 0; i < seen.size(); i++)
+        if(!seen[i])
+            S.push_back(i);
+        
+    return make_pair(Smin,S);
 }

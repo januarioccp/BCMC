@@ -1,5 +1,4 @@
 #include "MinCutter.h"
-#include "DisjSet.h"
 
 ostream &operator<<(ostream &os, const MinCutter &m)
 {
