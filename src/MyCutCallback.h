@@ -4,7 +4,7 @@
 // User's library
 #include "NodeInfo.h"
 #include "MinCutter.h"
-// #include "MaxBacker.h"
+#include "MaxBacker.h"
 
 // CPLEX
 #include <ilcplex/ilocplex.h>
@@ -34,6 +34,7 @@ public:
 private:
   IloArray<IloBoolVarArray> x;
   MinCutter* myMinCut;
+  MaxBacker* myMaxBack;
 };
 
 #endif
