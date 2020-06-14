@@ -11,7 +11,7 @@ CPLEXLIBDIR   = $(CPLEXDIR)/lib/x86-64_osx/static_pic
 CONCERTLIBDIR = $(CONCERTDIR)/lib/x86-64_osx/static_pic
 
 #### define o compilador
-CPPC = g++ -O3 -std=c++2a 
+CPPC = g++ -g3 -std=c++2a 
 #############################
 
 #### opcoes de compilacao e includes
@@ -58,7 +58,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 #delete objetos e arquivos de dependencia
 clean:
 	@echo "\033[31mcleaning obj directory \033[0m"
-	@rm tsp -f $(OBJDIR)/*.o $(OBJDIR)/*.d
+	@rm tsp $(OBJDIR)/*.o $(OBJDIR)/*.d
 
 
 rebuild: clean tsp
