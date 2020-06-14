@@ -255,6 +255,7 @@ int main(int argc, char **argv)
       // Export the LP model to a txt file to check correctness
       cplex.exportModel("model.lp");
       bool solved = cplex.solve();
+      std::cout << "status: " << cplex.getStatus() << std::endl;
 
       if (solved)
          env.out() << "Optimal tour length "
