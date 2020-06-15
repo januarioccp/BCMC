@@ -37,23 +37,14 @@ std::vector<IloConstraint> *MyLazyCallback::separate()
    IloEnv env = getEnv();
    IloInt n = x.getSize();
 
-   IloNumArray2 sol(env, n);
-   for (IloInt i = 0; i < n; i++)
-   {
-      sol[i] = IloNumArray(env, n);
-      for (IloInt j = 0; j < n; j++)
-      {
-         if (i < j)
+   // Retrieve solution information
+    vector<vector<double>> sol = vector<vector<double>>(n, vector<double>(n, 0));
+    for (IloInt i = 0; i < n; i++)
+        for (IloInt j = i + 1; j < n; j++)
+        {
             sol[i][j] = abs(getValue(x[i][j]));
-         else
-            sol[i][j] = 0;
-      }
-   }
-
-   // Creating an adjacency matrix
-   for (IloInt i = 0; i < n; i++)
-      for (IloInt j = i + 1; j < n; j++)
-         sol[j][i] = sol[i][j];
+            sol[j][i] = sol[i][j];
+        }
 
    // Declares a boolean vector of size n with false
    vector<bool> seen(n, false);
@@ -143,11 +134,6 @@ std::vector<IloConstraint> *MyLazyCallback::separate()
          expr1.end();
       }
    }
-
-   seen.end();
-   for (IloInt i = 0; i < n; i++)
-      sol[i].end();
-   sol.end();
 
    return constraints;
 }
