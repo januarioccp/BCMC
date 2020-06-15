@@ -33,6 +33,7 @@ void MaxBacker::maximumBack(const vector<vector<double> > &w, vector<int> &Smin)
     V.erase(V.begin());
     Smin = Set;
     Cutmin = 0.0;
+    
     for(int i = 0; i < V.size(); i++)
         Cutmin += w[Set.back()][V[i].second];
     double Cutval = Cutmin;
@@ -45,30 +46,20 @@ void MaxBacker::maximumBack(const vector<vector<double> > &w, vector<int> &Smin)
 
     while (Set.size() < n - 1)
     {
-        /**
-         * Build heap
+        /** 
+         * maximum max-back index
          * */
-        make_heap(V.begin(), V.end());
-
-        /**
-         * Choose v not in S of maximum max-back value - mmbv
-         * */
-        pair<double, int> mmbv = V.front();
-
-        /**
-         * Remove mmbv from V
-         * */
-        V.erase(V.begin());
+        int mmbi = max_element(V.begin(), V.end()) - V.begin();
 
         /**
          * Add to S the vertex v that is not in S and v has the maximum max-back value - mmbv
          * */
-        Set.push_back(mmbv.second);
+        Set.push_back(V[mmbi].second);
 
         /**
          * Compute Cutval
          * */
-        Cutval = Cutval + 2.0 - 2.0 * mmbv.first;
+        Cutval = Cutval + 2.0 - 2.0 * V[mmbi].first;
 
         /**
          * Update Cutmin, if necessary
@@ -83,6 +74,12 @@ void MaxBacker::maximumBack(const vector<vector<double> > &w, vector<int> &Smin)
         * Update weights based on the last inserted
         * */
         for(int i = 0; i < V.size(); i++)
-            V[i].first += w[mmbv.second][V[i].second];
+            V[i].first += w[V[mmbi].second][V[i].second];
+
+        /**
+         * Remove mmbv from V
+         * */
+        V.erase(V.begin() + mmbi);
     }
+    // cout<<Cutmin<<endl;
 }
