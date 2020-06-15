@@ -11,22 +11,20 @@ using namespace std;
 class MinCutter{
 private:
     double minCut;
-    vector<int> S1;
-    vector<int> S2;
     vector<int> G;
     vector<int> A;
-    DisjSet* dSet;
+    DisjSet* partition;
+    DisjSet* best_partition;
+    int best_last;
     vector<vector<double> > w;
-    void minimumCut();
-    int MINIMUMCUTPHASE();
-    friend ostream& operator<<(ostream& os, const MinCutter& dt);
+    void minimumCut(vector<vector<double> > &w, vector<int> &S);
+    int MINIMUMCUTPHASE(vector<vector<double> > &w);
 
 public:
-    void updateMinCut(const vector<vector<double> > &w);
-    MinCutter(const vector<vector<double> > &w);
+    void updateMinCut(vector<vector<double> > &w, vector<int> &S);
+    MinCutter(vector<vector<double> > &w, vector<int> &S);
     ~MinCutter();
     double getMinCut(){ return minCut;}
-    pair<vector<int>, vector<int> > getPartition(){return make_pair(S1,S2);}
 };
 
 #endif

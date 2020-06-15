@@ -11,7 +11,7 @@ CPLEXLIBDIR   = $(CPLEXDIR)/lib/x86-64_osx/static_pic
 CONCERTLIBDIR = $(CONCERTDIR)/lib/x86-64_osx/static_pic
 
 #### define o compilador
-CPPC = g++ -g3 -std=c++2a 
+CPPC = g++ -Ofast -std=c++2a 
 #############################
 
 #### opcoes de compilacao e includes

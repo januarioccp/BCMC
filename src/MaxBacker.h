@@ -11,17 +11,11 @@ using namespace std;
 class MaxBacker{
 private:
     double Cutmin;
-    vector<int> S;
-    vector<vector<double> > w;
-    void maximumBack();
-    friend ostream& operator<<(ostream& os,MaxBacker& mb);
-
+    void maximumBack(const vector<vector<double> > &wf, vector<int> &S1);
 public:
-    vector<int> Smin;
-    void updateMaxBack(const vector<vector<double> > &w);
-    MaxBacker(const vector<vector<double> > &w);
+    void updateMaxBack(const vector<vector<double> > &wf, vector<int> &S1);
+    MaxBacker(const vector<vector<double> > &wf, vector<int> &S1);
     double getMaxBack(){ return Cutmin;}
-    pair<vector<int>, vector<int> > getPartition();
 };
 
 #endif

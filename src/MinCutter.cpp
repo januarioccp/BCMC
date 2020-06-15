@@ -1,45 +1,21 @@
 #include "MinCutter.h"
 
-ostream &operator<<(ostream &os, const MinCutter &m)
-{
-    os << m.minCut << endl;
-    os << "{";
-    for (auto i : m.S1)
-    {
-        os << i+1;
-        if (i != m.S1.back())
-            os << ",";
-    }
-    os << "}{";
-    for (auto i : m.S2)
-    {
-        os << i+1;
-        if (i != m.S2.back())
-            os << ",";
-    }
-    os << "}";
-    return os;
+void MinCutter::updateMinCut(vector<vector<double> > &w, vector<int> &S){
+    this->minimumCut(w,S);
 }
 
-void MinCutter::updateMinCut(const vector<vector<double> > &wf){
-    this->w = wf;
-    this->minimumCut();
-}
-
-MinCutter::MinCutter(const vector<vector<double> > &wf)
-{
-    this->w = wf;
-    dSet = nullptr;
-    this->minimumCut();
+MinCutter::MinCutter(vector<vector<double> > &w, vector<int> &S){
+    partition = nullptr;
+    this->minimumCut(w,S);
 }
 
 MinCutter::~MinCutter()
 {
-    delete this->dSet;
+    delete this->partition;
+    delete this->best_partition;
 }
 
-void MinCutter::minimumCut()
-{
+void MinCutter::minimumCut(vector<vector<double> > &w, vector<int> &S){
     int n = w.size();
     // You need to find the value of the minimum cut
     this->minCut = numeric_limits<double>::max();
@@ -50,22 +26,32 @@ void MinCutter::minimumCut()
         G[i] = i;
 
     // Use a disjoint set data structure to shrink G later
-    if(dSet == nullptr)
-        dSet = new DisjSet(n);
-    else
-        dSet->makeSet();
+    if(partition == nullptr){
+        partition = new DisjSet(n);
+        best_partition = new DisjSet(n);
+    }
+    else{
+        partition->makeSet();
+        best_partition->makeSet();
+    }
 
     // Compute the minimumCut while there is
     // at least 2 vertices
     while (G.size() > 1)
     {
         // Shrink G
-        G.erase(remove(G.begin(), G.end(), MINIMUMCUTPHASE()), G.end());
+        G.erase(remove(G.begin(), G.end(), MINIMUMCUTPHASE(w)), G.end());
     }
+
+    /**
+     * Retrieving best partition
+     * */
+    for (int i = 0; i < w.size(); i++)
+        if (best_partition->find(best_last) == best_partition->find(i))
+            S.push_back(i);
 }
 
-int MinCutter::MINIMUMCUTPHASE()
-{
+int MinCutter::MINIMUMCUTPHASE(vector<vector<double> > &w){
     // A container to the vertices in this phase
     // A.clear();
     A.resize(0);
@@ -75,7 +61,7 @@ int MinCutter::MINIMUMCUTPHASE()
     vector< pair<double,int> > V;
 
     // Copying G to V
-    for(auto i:G)
+    for(int i:G)
         V.push_back(make_pair(0,i));
 
     // Choose a vector from v=2 to insert in A
@@ -95,13 +81,13 @@ int MinCutter::MINIMUMCUTPHASE()
     // Store the initial size of G
     int n = V.size() + A.size();
 
+    //Update weights based on the last inserted
+        for(int i = 0; i < V.size(); i++)
+            V[i].first+=w[A.front()][V[i].second];
+
     // You need to do until A is as large as the initial size of G
     while (A.size() < n)
     {
-        //Update weights based on the last inserted
-        for(auto &i:V)
-            i.first+=w[A.back()][i.second];
-        
         // Build heap
         make_heap(V.begin(),V.end());
         
@@ -116,6 +102,10 @@ int MinCutter::MINIMUMCUTPHASE()
 
         // Remove mtcv from V
         V.erase(V.begin());
+
+        //Update weights based on the last inserted
+        for(int i = 0; i < V.size(); i++)
+            V[i].first+=w[mtcv.second][V[i].second];
     }
 
     // Before last
@@ -126,20 +116,13 @@ int MinCutter::MINIMUMCUTPHASE()
     if (cut_of_the_phase < this->minCut)
     {
         this->minCut = cut_of_the_phase;
-        // Clear the partition set every time???
-        S1.clear();
-        S2.clear();
-        for (int i = 0; i < w.size(); i++)
-            if (dSet->find(last) == dSet->find(i))
-                S1.push_back(i);
-            else
-                S2.push_back(i);
+        (*best_partition) = (*partition);
+        best_last = last;
     }
+    partition->Union(s, last);
 
     // Merge the two last vertex added last
-    dSet->Union(s, last);
-
-    for (auto i : A)
+    for (int i : A)
     {
         w[i][s] += w[i][last];
         w[s][i] = w[i][s];
