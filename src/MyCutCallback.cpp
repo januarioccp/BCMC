@@ -48,50 +48,53 @@ void MyCutCallback::main()
     // Retrieve solution information
     vector<vector<double>> w = vector<vector<double>>(n, vector<double>(n, 0));
     for (IloInt i = 0; i < n; i++)
-    {
         for (IloInt j = i + 1; j < n; j++)
         {
             w[i][j] = abs(getValue(x[i][j]));
             w[j][i] = w[i][j];
         }
-    }
 
-    if (myMaxBack == nullptr)
-        myMaxBack = new MaxBacker(w);
-     else
-         myMaxBack->updateMaxBack(w);
-
-    // // True if maxback heuristic is supposed to be used
+    // True if maxback heuristic is supposed to be used
     bool useMB = false;
-
-    // // True if mincut algorithm is supposed to be used
+    // True if mincut algorithm is supposed to be used
     bool useMC = false;
 
-    if (true && data->depth < MB_DEPTH)
+    vector<int> S1;
+
+    if (myMaxBack == nullptr)
+        myMaxBack = new MaxBacker(w,S1);
+     else
+         myMaxBack->updateMaxBack(w,S1);
+
+    if (myMaxBack->getMaxBack() < 2.0 - EPSILON)
+            useMB = true;
+
+    if (!useMB && data->depth < MB_DEPTH)
     {
         if (myMinCut == nullptr)
-            myMinCut = new MinCutter(w);
+            myMinCut = new MinCutter(w,S1);
         else
-            myMinCut->updateMinCut(w);
+            myMinCut->updateMinCut(w,S1);
 
         if (myMinCut->getMinCut() < 2.0 - EPSILON)
             useMC = true;
     }
-    else
-        useMB = false;
 
     // Add the cut
-    if (useMB || useMC)
+    if ((useMB || useMC) && S1.size()>=3 && S1.size() <= n-3)
     {
-        pair<vector<int>, vector<int>> partition;
-        if(useMC)
-            partition = myMinCut->getPartition();
-        else
-            partition = myMaxBack->getPartition();
+        vector<bool> seen(n, false);
+        vector<int> S2;
+        for (int i : S1)
+            seen[i] = true;
+
+        for (int i = 0; i < n; i++)
+            if (!seen[i])
+                S2.push_back(i);
         
         IloExpr expr1(env);
-        for (auto i : partition.first)
-            for (auto j : partition.second)
+        for (int i : S1)
+            for (int j : S2)
             {
                 if (i < j)
                     expr1 += x[i][j];
