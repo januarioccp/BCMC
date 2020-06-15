@@ -22,7 +22,7 @@ typedef IloArray<IloBoolVarArray> Edges;
 #include <cstdlib>
 using namespace std;
 
-IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol);
+IloInt checkTour(vector<vector<double>> sol, vector<bool> seen, IloNum tol);
 
 int toEdge(int x, int y, int n){
 	if(x == y)
@@ -39,12 +39,12 @@ int main(int argc, char **argv)
 {
    // Run RVND to identify an UB
    Input in(argc, argv);   
-   Solution sol(&in);
+   Solution solution(&in);
 	LocalSearch ls(&in);
    int UB = numeric_limits<int>::max();
    if(argc < 3){
-      sol = ls.GILSRVND();
-      UB = sol.costValueTSP + 1;
+      solution = ls.GILSRVND();
+      UB = solution.costValueTSP + 1;
    }
    else{
       UB = atoi(argv[2])+1;
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 
    // create model
    IloModel tsp(env);
-   tsp.setName("Traveling Tournament Problem Model");
+   tsp.setName("Traveling Salesman Problem Model");
    try
    {
       // A matrix for storing the input distances
@@ -121,8 +121,8 @@ int main(int argc, char **argv)
             x_start[i] = 0;
 
          // Build initial solution
-         for (int i = 0; i < sol.location.size() - 1; i++)
-            x_start[toEdge(sol.location[i] - 1, sol.location[i + 1] - 1, n)] = 1;
+         for (int i = 0; i < solution.location.size() - 1; i++)
+            x_start[toEdge(solution.location[i] - 1, solution.location[i + 1] - 1, n)] = 1;
 
          IloNumVarArray y(env);
          for (int i = 0; i < n; i++)
@@ -161,35 +161,19 @@ int main(int argc, char **argv)
          env.out() << "Optimal tour length "
                    << cplex.getObjValue() << endl;
 
-      return 0;
+      // Retrieve solution information
+      vector<vector<double>> result = vector<vector<double>>(n, vector<double>(n, 0));
+      for (int i = 0; i < n; i++)
+        for (int j = i + 1; j < n; j++)
+        {
+            result[i][j] = abs(cplex.getValue(x[i][j]));
+            result[j][i] = result[i][j];
+        }
 
-      IloNumArray2 sol(env, n);
-      for (IloInt i = 0; i < n; i++)
-      {
-         sol[i] = IloNumArray(env, n);
-         cplex.getValues(sol[i], x[i]);
-      }
-      IloBoolArray seen(env);
-      IloInt length = checkTour(sol, seen, tol);
+      vector<bool> seen(n,false);
+      checkTour(result, seen, tol);
 
-      if (length < n)
-      {
-         IloExpr clique(env);
-         for (int i = 0; i < n; i++)
-         {
-            if (seen[i])
-            {
-               for (int j = i + 1; j < n; j++)
-               {
-                  if (seen[j])
-                     clique += x[j][i];
-               }
-            }
-         }
-         cerr << cplex.getValue(clique) << " <= " << length - 1 << endl;
-      }
-
-      // assert (length == n);
+            return 0;
 
 #ifdef FULLTEST
       assert(cplex.getImpl()->isConsistent());
@@ -224,18 +208,16 @@ int main(int argc, char **argv)
    return 0;
 }
 
-IloInt checkTour(IloNumArray2 sol, IloBoolArray seen, IloNum tol)
+IloInt checkTour(vector<vector<double>> sol, vector<bool> seen, IloNum tol)
 {
-   IloInt j, n = sol.getSize();
+   IloInt j, n = sol.size();
    IloInt last = -1;
    IloInt length = 0;
    IloInt current = 0;
-   seen.clear();
-   seen.add(n, 0.0);
 
    // Search for a subtour if sol[] is integer feasible
 
-   while (seen[current] == 0)
+   while (seen[current] == false)
    {
       cout << current << " ";
       length++;
