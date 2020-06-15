@@ -35,105 +35,6 @@ int toEdge(int x, int y, int n){
 		return (n-1)*x-(x*(x+1)/2)+y;
 }
 
-ILOUSERCUTCALLBACK2(MaxBack, Edges, x, IloNum, tol)
-{
-   if (getCurrentNodeDepth() > 7)
-      return;
-
-   IloEnv env = getEnv();
-   IloInt n = x.getSize();
-
-   // Retrieve solution information
-   vector<vector<double>> sol(n);
-   for (IloInt i = 0; i < n; i++)
-   {
-      sol[i].resize(n);
-      for (IloInt j = 0; j < n; j++)
-         sol[i][j] = abs(double(getValue(x[i][j])));
-   }
-
-   // Creating an adjacency matrix
-   for (IloInt i = 0; i < n; i++)
-      for (IloInt j = 0; j < i; j++)
-         sol[j][i] = sol[i][j];
-
-   vector<int> S;
-   vector<int> Smin;
-   vector<bool> seen(n);
-   vector<double> b(n);
-   fill(seen.begin(), seen.end(), false);
-
-   int v = rand() % n;
-   S.push_back(v);
-   seen[v] = true;
-   b[v] = -numeric_limits<double>::infinity();
-
-   double Cutmin;
-   double Cutval;
-   Cutmin = 0.0;
-   for (int i = 0; i < n; i++)
-   {
-      if (!seen[i] && v != i)
-      {
-         b[i] = sol[v][i];
-         Cutmin += b[i];
-      }
-   }
-
-   Smin = S;
-   Cutval = Cutmin;
-
-   while (S.size() < n)
-   {
-      // Choose v not in S of maximum max-back value b(v)
-      double maxb = -numeric_limits<double>::infinity();
-      for (int i = 0; i < n; i++)
-         if (!seen[i])
-            if (maxb < b[i])
-            {
-               maxb = b[i];
-               v = i;
-            }
-
-      S.push_back(v);
-      seen[v] = true;
-      Cutval = Cutval + 2 - 2 * b[v];
-
-      for (int t = 0; t < n; t++)
-      {
-         if (!seen[t] && v != t)
-            b[t] = b[t] + sol[v][t];
-      }
-      if (Cutval < Cutmin)
-      {
-         Cutmin = Cutval;
-         Smin = S;
-      }
-   }
-
-   if (Cutmin < 2.0 - tol)
-   {
-      fill(seen.begin(), seen.end(), false);
-      vector<int> v = Smin;
-      for (int i = 0; i < v.size(); i++)
-         seen[v[i]] = true;
-      vector<int> y;
-      for (int i = 0; i < n; i++)
-         if (!seen[i])
-            y.push_back(i);
-      if (v.size() > 0 && y.size() > 0)
-      {
-         IloExpr expr1(env);
-         for (int i = 0; i < v.size(); i++)
-            for (int j = 0; j < y.size(); j++)
-               expr1 += x[v[i]][y[j]] + x[y[j]][v[i]];
-         // cout << "Adding cut " << expr1 << " >= 2 " << endl;
-         add(expr1 >= 2).end();
-         expr1.end();
-      }
-   }
-}
-
 int main(int argc, char **argv)
 {
    // Run RVND to identify an UB
@@ -171,6 +72,7 @@ int main(int argc, char **argv)
       // You are allocating memory. Remmember to free it before leaving
       for (IloInt i = 0; i < n; i++)
          dist[i] = IloNumArray(env, n);
+
       for (IloInt i = 0; i < n; i++)
          for (IloInt j = 0; j < n; j++)
             dist[i][j] = input.getDistance(i, j);
@@ -211,24 +113,27 @@ int main(int argc, char **argv)
 
       IloCplex cplex(tsp);
 
-      // Declaring initial solution
-      IloNumArray x_start(env,n*n);
-      for(int i = 0; i < x_start.getSize(); i++)
-         x_start[i]=0;
+      if (argc == 3)
+      {
+         // Declaring initial solution
+         IloNumArray x_start(env, n * n);
+         for (int i = 0; i < x_start.getSize(); i++)
+            x_start[i] = 0;
 
-      // Build initial solution
-      for (int i = 0; i < sol.location.size() - 1; i++)
-		   x_start[toEdge(sol.location[i]-1,sol.location[i+1]-1,n)] = 1;
-         
-      IloNumVarArray y(env);
-	   for(int i = 0; i < n;i++)
-         for(int j = i+1; j < n;j++)
-		      y.add(x[i][j]);
+         // Build initial solution
+         for (int i = 0; i < sol.location.size() - 1; i++)
+            x_start[toEdge(sol.location[i] - 1, sol.location[i + 1] - 1, n)] = 1;
 
-      cplex.addMIPStart(y, x_start);
+         IloNumVarArray y(env);
+         for (int i = 0; i < n; i++)
+            for (int j = i + 1; j < n; j++)
+               y.add(x[i][j]);
 
-      // Write initial solution on a file
-      cplex.writeMIPStarts("start.mst");
+         cplex.addMIPStart(y, x_start);
+
+         // Write initial solution on a file
+         cplex.writeMIPStarts("start.mst");
+      }
 
       IloNum tol = cplex.getParam(IloCplex::EpInt);
 
@@ -242,15 +147,10 @@ int main(int argc, char **argv)
       MyBranchCallback *branchCbk = new (env) MyBranchCallback(env);
       cplex.use(branchCbk);
 
-      // cplex.use(MaxBack(env, x, tol));
-      //      cplex.use(MinCut(env, x, tol));
       cplex.setParam(IloCplex::PreInd, IloFalse);
       cplex.setParam(IloCplex::TiLim, 2 * 60 * 60);
 	   cplex.setParam(IloCplex::Threads, 1);
 	   cplex.setParam(IloCplex::CutUp, UB + 1);
-      // cplex.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
-      // cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
-      // cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
 
       // Export the LP model to a txt file to check correctness
       cplex.exportModel("model.lp");
